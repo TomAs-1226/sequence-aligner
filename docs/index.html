@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sequence Aligner - Group A1</title>
+<meta name="description" content="A tunable DNA and protein sequence aligner that runs real Python in your browser." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="overlay" class="overlay">
+  <div class="spinner"></div>
+  <div class="big">Starting the Python engine</div>
+  <p>This runs our actual Python aligner right in your browser, so the first load takes a few seconds. Nothing to install.</p>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Sequence Aligner</h1>
+      <p class="team">A group project by Sophia, Thomas, Brady, and Alex</p>
+      <span class="badge">Real Python, running in your browser</span>
+    </div>
+    <a class="writeup-btn" href="writeup.html">
+      <span>Read our write-up</span><span class="arrow">&rarr;</span>
+    </a>
+  </header>
+
+  <div class="grid">
+    <!-- controls -->
+    <section class="panel" id="controls">
+      <h2>Set it up</h2>
+
+      <label class="field" for="sample">Load an example</label>
+      <select id="sample"></select>
+      <p class="cap" id="sampleNote"></p>
+
+      <label class="field" for="seq1">Sequence 1</label>
+      <textarea id="seq1" spellcheck="false"></textarea>
+      <label class="field" for="seq2">Sequence 2</label>
+      <textarea id="seq2" spellcheck="false"></textarea>
+
+      <label class="field">Sequence type</label>
+      <div class="seg" id="typeSeg">
+        <button data-v="dna" class="on">DNA</button>
+        <button data-v="protein">Protein</button>
+      </div>
+
+      <div id="matrixWrap" style="display:none">
+        <label class="field">Protein scoring matrix</label>
+        <div class="seg" id="matrixSeg">
+          <button data-v="BLOSUM62" class="on">BLOSUM62</button>
+          <button data-v="PAM250">PAM250</button>
+        </div>
+      </div>
+
+      <label class="field">Alignment mode</label>
+      <div class="seg" id="modeSeg">
+        <button data-v="global" class="on">Global</button>
+        <button data-v="local">Local</button>
+        <button data-v="semiglobal">Semi-global</button>
+      </div>
+
+      <label class="field">Gap model</label>
+      <div class="seg" id="gapSeg">
+        <button data-v="linear" class="on">Linear</button>
+        <button data-v="affine">Affine</button>
+      </div>
+
+      <div id="dnaSliders">
+        <div class="slider-row" data-k="match">
+          <div class="top"><span>Match reward</span><b id="matchVal">1</b></div>
+          <input type="range" id="match" min="0" max="10" step="0.5" value="1" />
+        </div>
+        <div class="slider-row" data-k="mismatch">
+          <div class="top"><span>Mismatch penalty</span><b id="mismatchVal">1</b></div>
+          <input type="range" id="mismatch" min="0" max="10" step="0.5" value="1" />
+        </div>
+      </div>
+
+      <div class="slider-row" data-k="gap" id="gapRow">
+        <div class="top"><span>Gap penalty</span><b id="gapVal">2</b></div>
+        <input type="range" id="gap" min="0" max="15" step="0.5" value="2" />
+      </div>
+      <div id="affineSliders" style="display:none">
+        <div class="slider-row" data-k="gap_open">
+          <div class="top"><span>Gap open</span><b id="gap_openVal">8</b></div>
+          <input type="range" id="gap_open" min="0" max="20" step="0.5" value="8" />
+        </div>
+        <div class="slider-row" data-k="gap_extend">
+          <div class="top"><span>Gap extend</span><b id="gap_extendVal">1</b></div>
+          <input type="range" id="gap_extend" min="0" max="10" step="0.5" value="1" />
+        </div>
+      </div>
+
+      <label class="field">Quick presets</label>
+      <div class="presets">
+        <button class="good" id="presetGood">Sensible settings</button>
+        <button class="bad" id="presetBad">Careless settings</button>
+      </div>
+    </section>
+
+    <!-- results -->
+    <section class="panel" id="results">
+      <h2>The alignment</h2>
+      <div class="stats">
+        <div class="stat green"><div class="n" id="stScore">-</div><div class="l">score</div></div>
+        <div class="stat amber"><div class="n" id="stIdent">-</div><div class="l">percent identity</div></div>
+        <div class="stat red"><div class="n" id="stGaps">-</div><div class="l">separate gaps</div></div>
+      </div>
+      <p class="used" id="stUsed"></p>
+
+      <div class="aln" id="aln">Move a slider or load an example to align.</div>
+      <div class="legend">
+        <span class="m"><b>ABC</b> match</span>
+        <span class="x"><b>ABC</b> mismatch</span>
+        <span class="g"><b>-</b> gap</span>
+        <span>The middle line marks matches with <b>|</b>.</span>
+      </div>
+
+      <div class="tools">
+        <button id="btnTranslate">Translate DNA to protein</button>
+        <button id="btnRevcomp">Reverse complement seq 2</button>
+        <button id="btnCopy">Copy alignment</button>
+      </div>
+
+      <div class="plot-wrap">
+        <canvas id="dotplot" width="460" height="460"></canvas>
+        <p class="cap">Dot plot: a dot marks where the two sequences share a short window. Related sequences form a diagonal line, and breaks in it are insertions or deletions.</p>
+      </div>
+    </section>
+  </div>
+
+  <p class="footnote">
+    This page runs our real <code>engine.py</code> with <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a> (Python compiled to WebAssembly). No server, nothing to install.
+    <a href="writeup.html">Read the write-up</a> for the good-versus-bad story and how we judge a good alignment.
+  </p>
+</div>
+
+<script src="samples.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

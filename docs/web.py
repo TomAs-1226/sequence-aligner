@@ -1,0 +1,76 @@
+"""Thin wrapper the web page calls. It takes plain values from the browser,
+runs the real engine, and returns a JSON string. No changes to engine.py."""
+import json
+import re
+import engine as e
+
+
+def _clean(seq, seqtype):
+    seq = seq.upper()
+    if seqtype == "dna":
+        return re.sub(r"[^ACGTUN]", "", seq)
+    return re.sub(r"[^A-Z*]", "", seq)
+
+
+def web_align_json(params_json):
+    p = json.loads(params_json)
+    seqtype = p["seqtype"]
+    seq1 = _clean(p["seq1"], seqtype)
+    seq2 = _clean(p["seq2"], seqtype)
+    if not seq1 or not seq2:
+        return json.dumps({"error": "Enter two sequences to align."})
+
+    mode = p["mode"]
+    gapmodel = p["gapmodel"]
+    gap = float(p["gap"])
+
+    if seqtype == "dna":
+        scorer = e.dna_scorer(float(p["match"]), float(p["mismatch"]))
+    else:
+        matrix = e.BLOSUM62 if p.get("matrix") == "BLOSUM62" else e.PAM250
+        scorer = e.matrix_scorer(matrix)
+
+    # Keep the browser responsive: very large pairs use the banded method.
+    if len(seq1) * len(seq2) > 4_000_000:
+        row1, row2, score = e.align_banded(seq1, seq2, scorer, gap)
+        used = "banded (long sequences)"
+    elif gapmodel == "affine" and mode == "global":
+        r = e.align_global_affine(seq1, seq2, scorer,
+                                  float(p["gap_open"]), float(p["gap_extend"]))
+        row1, row2, score = r[0], r[1], r[2]
+        used = "global, affine gaps"
+    elif mode == "local":
+        res = e.align_local(seq1, seq2, scorer, gap)
+        row1, row2, score = res[0], res[1], res[2]
+        used = "local (Smith-Waterman)"
+    elif mode == "semiglobal":
+        row1, row2, score = e.align_semiglobal(seq1, seq2, scorer, gap)
+        used = "semi-global (free end gaps)"
+    else:
+        row1, row2, score = e.align_global(seq1, seq2, scorer, gap)
+        used = "global (Needleman-Wunsch)"
+
+    ident = e.percent_identity(row1, row2)
+    ngaps, glens = e.gap_stats(row1, row2)
+    match = "".join(
+        "|" if (a == b and a != "-") else (" " if (a == "-" or b == "-") else ".")
+        for a, b in zip(row1, row2)
+    )
+    return json.dumps({
+        "row1": row1, "row2": row2, "match": match,
+        "score": round(float(score), 2),
+        "identity": round(float(ident), 1),
+        "gaps": ngaps, "gap_lengths": glens, "used": used,
+        "len1": len(seq1), "len2": len(seq2), "cols": len(row1),
+    })
+
+
+def do_translate(payload):
+    # payload is "seq1||seq2"; translate both, return a JSON list.
+    parts = payload.split("||")
+    outs = [e.translate(re.sub(r"[^ACGTUNacgtun]", "", x)) for x in parts]
+    return json.dumps(outs)
+
+
+def do_revcomp(dna):
+    return e.reverse_complement(re.sub(r"[^ACGTUNacgtun]", "", dna))

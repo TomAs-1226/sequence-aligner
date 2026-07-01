@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Write-up - Sequence Aligner - Group A1</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .article { max-width: 820px; margin: 0 auto; }
+  .article .panel { padding: 26px 30px; margin-bottom: 18px; }
+  .article h2.sec { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 22px; margin: 4px 0 12px; }
+  .article p { font-size: 15.5px; color: #dbe7e2; }
+  .article .lead { font-size: 17px; color: var(--ink); }
+  figure { margin: 18px 0 6px; }
+  figure img { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .signal { display: flex; gap: 12px; margin: 14px 0; }
+  .signal .num { flex: 0 0 34px; height: 34px; border-radius: 50%; background: var(--green-dim);
+    color: #eafff1; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .signal .body b { color: var(--ink); }
+  .signal .body { color: #cfe0da; font-size: 15px; }
+  .pill { display: inline-block; background: #0f201d; border: 1px solid var(--line); color: var(--green);
+    border-radius: 999px; padding: 2px 10px; font-size: 12.5px; margin: 2px 4px 2px 0; }
+  .backbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap article">
+
+  <div class="backbar">
+    <a class="writeup-btn" href="index.html"><span class="arrow">&larr;</span><span>Back to the aligner</span></a>
+    <span class="badge">Group A1: Sophia, Thomas, Brady, and Alex</span>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">The question we set out to answer</h2>
+    <p class="lead">If the alignment you get depends on the scoring numbers you pick, how do you know which alignment is actually right?</p>
+    <p>We built our own tunable aligner in Python, starting from the global and local alignment code we wrote this module and generalizing it to proteins. Then we used it on real DNA and protein, hemoglobin across species and the SARS spike gene, to figure out what makes one alignment better than another. The short version is that the raw score cannot be the judge, because we chose the numbers that produce it. This page walks through how we know that, and what we trust instead.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Good settings versus careless settings</h2>
+    <p>Here is the whole problem in miniature. These are the same two short DNA sequences, aligned twice, changing only the gap penalty.</p>
+    <figure>
+      <img src="figures/fig1_toy_good_bad.png" alt="Toy DNA aligned with good and bad gap settings" />
+      <figcaption>Our aligner on a toy pair. Good settings (gap = 3) give one clean insertion: score 4, identity 92.3 percent, one gap. Careless settings (gap = 0.1) score 23.2 with a perfect 100 percent identity, but the alignment shatters into five scattered gaps to dodge every mismatch. The higher score and higher identity are the worse answer.</figcaption>
+    </figure>
+    <p>You might think that was an artifact of a tiny made-up example, so we tried it on a real gene: hemoglobin beta, human versus zebrafish, scored with the BLOSUM62 protein matrix.</p>
+    <figure>
+      <img src="figures/fig2_hbb_good_bad.png" alt="Hemoglobin beta aligned with good and bad gap settings" />
+      <figcaption>Human versus zebrafish hemoglobin beta. Good settings (gap = 10) give score 419 with one clean gap. Free gaps (gap = 0) raise the score to 497 and even raise the identity, but the gap count explodes from 1 to 29 separate insertions and deletions. Twenty-nine independent events is a far less believable history than one.</figcaption>
+    </figure>
+    <p>So even on real biology, the settings that score higher and read as more identical are the ones that are biologically wrong. That is the trap this whole project is about. Open the aligner, load one of these examples, and drag the gap slider down to zero to watch it happen live.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Why one gap penalty is not enough</h2>
+    <p>The reason careless gap settings break things is that a single flat gap penalty is asked to do two opposite jobs at once. It has to allow one long real insertion, but block many scattered fake ones. With a linear penalty a gap of length nine costs exactly nine times the penalty, so a real block insertion is charged the same per letter as nine unrelated single-letter gaps. The model literally cannot tell a chunky indel from confetti.</p>
+    <figure>
+      <img src="figures/fig5_gap_problem.png" alt="Linear versus affine gap penalties" />
+      <figcaption>The fix is affine gaps: charge a lot to open a gap and a little to extend it. Then one long gap is cheap to grow but scattered gaps each pay the opening cost. The affine setting in the aligner turns this on for global mode.</figcaption>
+    </figure>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Why we align protein, not just DNA</h2>
+    <p>We took the SARS-CoV and SARS-CoV-2 spike genes, aligned them as DNA and again as the protein they code for, then sorted every change.</p>
+    <figure>
+      <img src="figures/fig3_sars_codons.png" alt="Synonymous versus nonsynonymous changes in the SARS spike" />
+      <figcaption>DNA identity is 77.3 percent and protein identity is 78.0 percent, almost the same headline. But of the 713 DNA changes, 438 are synonymous: the DNA letter changed but the amino acid did not. Only 275 actually change the protein. The DNA sees hundreds of differences the protein never notices, which is the redundancy of the genetic code.</figcaption>
+    </figure>
+    <p>That is the difference between a mutation that exists and a mutation that matters, and it is why the amino acid alignment tells you more about what the virus is actually doing.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Seeing the changes in 3D</h2>
+    <p>Those 275 protein changes are not abstract. We drew them onto the real SARS-CoV-2 spike structure from the Protein Data Bank.</p>
+    <figure>
+      <img src="figures/fig6_spike_3d.png" alt="Changed residues mapped onto the spike structure" />
+      <figcaption>Gray is the conserved backbone. Red marks the 297 amino acids that changed, about 23 percent of the 1273-residue spike. Our own aligner decides which residues are red. They cluster on the outer surface, the part that grabs human cells and that antibodies target.</figcaption>
+    </figure>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">So how do we judge a good alignment?</h2>
+    <p>Since the score cannot be trusted on its own, here are the six things we actually look at. What they have in common is that they do not move when we change the reward knobs.</p>
+    <div class="signal"><div class="num">1</div><div class="body"><b>Percent identity.</b> It does not depend on the reward you set, so it ranks pairs honestly. Human and gorilla come out at 99.3 percent, human and zebrafish at 51.7 percent, which is the right order.</div></div>
+    <div class="signal"><div class="num">2</div><div class="body"><b>Gap structure.</b> A few long gaps beat a spray of tiny ones, even when the tiny ones score higher. One insertion is one event; twenty-nine is not.</div></div>
+    <div class="signal"><div class="num">3</div><div class="body"><b>Conserved regions line up.</b> The parts we already know matter, like the two histidines that grip the heme in hemoglobin, should land on top of each other.</div></div>
+    <div class="signal"><div class="num">4</div><div class="body"><b>Better than chance.</b> We shuffle one sequence thousands of times and align those. If the real score is not far out past the shuffled ones, it is not meaningful.</div></div>
+    <div class="signal"><div class="num">5</div><div class="body"><b>Independent evidence agrees.</b> A known structure, or a professional tool, should tell the same story. Ours does (see below).</div></div>
+    <div class="signal"><div class="num">6</div><div class="body"><b>The history is believable.</b> The mutations the alignment implies should be a plausible way for one sequence to have become the other.</div></div>
+    <p>The single best tell is stability. When the same alignment survives as we wiggle every parameter, that steadiness is the real answer, not the biggest number.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Further directions we explored</h2>
+    <p>Once the core aligner worked, we kept pushing it. The interactive page runs all of the alignment methods; the rest we built and tested alongside them.</p>
+    <p>
+      <span class="pill">Semi-global alignment</span>
+      <span class="pill">Affine gaps</span>
+      <span class="pill">Banded whole-genome alignment</span>
+      <span class="pill">GPU acceleration</span>
+      <span class="pill">On-device AI</span>
+      <span class="pill">Dot plots and conservation maps</span>
+    </p>
+    <p><b>Whole genomes.</b> A full alignment table for two 30,000-letter SARS genomes would be billions of cells and run out of memory, so we added a banded method that only fills the stripe near the diagonal. It aligns two whole genomes in about a second and drops the memory from quadratic to linear in the band width.</p>
+    <p><b>Speed.</b> For jobs that repeat, like the shuffle test that aligns against thousands of random sequences, we moved the work onto the graphics card with a diagonal wavefront method. On an Intel Arc GPU it runs about 28 times faster than the processor and gives the exact same scores, and it falls back to the processor automatically when there is no GPU.</p>
+    <p><b>On-device AI.</b> In the desktop version we trained two small neural networks from scratch that run locally: one predicts secondary structure (helix, sheet, or coil) at about 85 percent accuracy, and a transformer language model turns a protein into a fingerprint that sorts proteins into the right family about 90 percent of the time.</p>
+    <p><b>A sanity check.</b> To be sure our aligner is correct and not just plausible, we aligned human versus gorilla hemoglobin beta with our engine and with Biopython, a tool professionals use, under identical settings. Both returned the exact same optimal score, 777.0, and the exact same 99.32 percent identity. Not close, identical.</p>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">Try it yourself</h2>
+    <p>Everything above comes out of our own aligner. Head back to the tool, load an example, and move the sliders. The one line we would leave you with: the score rewards exactly what you tell it to reward, and biology decides what is actually true.</p>
+    <p style="margin-top:16px"><a class="writeup-btn" href="index.html"><span class="arrow">&larr;</span><span>Back to the aligner</span></a></p>
+  </div>
+
+  <p class="footnote">Group A1: Sophia, Thomas, Brady, and Alex. CMU Pre-College Computational Biology, Module 2.</p>
+</div>
+</body>
+</html>
