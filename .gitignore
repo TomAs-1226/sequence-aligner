@@ -31,3 +31,8 @@ blosum62_heatmap.png
 # large ML training artifacts (regenerate with build_plm.py / export_plm.py)
 app/plm.pt
 app/plm_embed.onnx
+
+# node (only needed to build the deck locally)
+node_modules/
+package.json
+package-lock.json
