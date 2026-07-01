@@ -1,0 +1,18 @@
+# .NET build output
+**/bin/
+**/obj/
+.vs/
+*.user
+
+# generated results (recreate with run.py / the notebook / build_deck.js)
+Output/
+Alignment/Output/
+slides_png/
+*.pdf
+SequenceAligner_preview.html
+
+# caches and junk
+app/__pycache__/
+app/6vxx.pdb
+__MACOSX/
+.ipynb_checkpoints/

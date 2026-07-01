@@ -1,0 +1,9 @@
+# Python packages for the notebook and the runner.
+# Install with:  pip install -r requirements.txt
+matplotlib
+numpy
+biopython      # only for the sanity-check comparison
+py3Dmol        # only for the interactive 3D viewer in the notebook
+jupyterlab     # to open and run the notebook locally
+ipywidgets     # the interactive sliders in the notebook
+nbconvert      # to export or run the notebook from the command line

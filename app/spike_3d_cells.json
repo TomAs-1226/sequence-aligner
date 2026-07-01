@@ -1,0 +1,19 @@
+{
+  "spike_3d": {
+    "cells": [
+      {
+        "kind": "markdown",
+        "source": "We found that 297 amino acids changed between the 2003 SARS spike and the SARS-CoV-2 spike. Those are just numbers in a list. This cell puts them on the real 3D shape of the spike protein, so you can see *where* the changes sit on the actual machine the virus uses to enter human cells.\n\nGray means the amino acid stayed the same. Red means it changed. The structure is the real SARS-CoV-2 spike trimer from the Protein Data Bank (entry 6VXX). The red positions come straight from our own aligner, not from a database."
+      },
+      {
+        "kind": "code",
+        "source": "# In Colab, run this line first to install the 3D viewer:\n# !pip install py3Dmol\nimport py3Dmol\n\n# Use our own aligner to find which SARS-CoV-2 spike residues changed vs SARS-CoV.\npr1, pr2, _ = align_global(SARS_COV_SPIKE_PROT, SARS_COV2_SPIKE_PROT, matrix_scorer(BLOSUM62), 10)\n\nchanged = []          # SARS-CoV-2 residue numbers (1-based) whose amino acid changed\nresi2 = 0\nfor a, b in zip(pr1, pr2):\n    if b == \"-\":\n        continue          # this column is a gap in SARS-CoV-2, so no residue number\n    resi2 += 1\n    if a == \"-\" or a != b:\n        changed.append(resi2)\n\npct = 100 * len(changed) / len(SARS_COV2_SPIKE_PROT)\nprint(f\"{len(changed)} of {len(SARS_COV2_SPIKE_PROT)} spike residues changed ({pct:.0f}% of the protein).\")\n\n# Draw the real 3D spike structure and color it by what changed.\nview = py3Dmol.view(query=\"pdb:6VXX\", width=720, height=520)\nview.setStyle({\"cartoon\": {\"color\": \"lightgray\"}})              # conserved residues stay gray\nview.addStyle({\"resi\": changed}, {\"cartoon\": {\"color\": \"red\"}})  # changed residues turn red\nview.zoomTo()\nview.show()"
+      },
+      {
+        "kind": "markdown",
+        "source": "What to look for when you rotate it:\n\n- Most of the protein is gray. About three quarters of the spike is identical between the two viruses, because the protein still has to fold and work the same way.\n- The red changes are not spread evenly. The top of the spike (the part that grabs onto human cells and that antibodies aim at) carries a lot of red. The stalk that drives the two membranes together is mostly gray.\n- This is the same point as the DNA-vs-protein section, shown in 3D. The mutations that matter are the ones that change the amino acid, and they land in the spots where changing the protein actually changes how the virus behaves."
+      }
+    ],
+    "emdash_remaining": 0
+  }
+}

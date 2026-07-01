@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SequenceAlignerApp (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SequenceAlignerApp (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
