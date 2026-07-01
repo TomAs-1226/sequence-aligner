@@ -122,6 +122,23 @@ protein and which were silent. That tells you which changes biology cares about.
 
 ---
 
+## 6c. Extra features (what changed and how to explain it)
+
+The engine and notebook grew some new abilities. Here is each one in plain words, so you can explain them when presenting.
+
+- **Semi-global alignment (free end gaps).** Normal global alignment charges you for gaps at the very start and end. If one sequence just has extra letters hanging off the front or back, that is unfair and gives a bad (even negative) score. Semi-global alignment makes those end gaps free, so only the middle overlap is scored. Use it when one sequence overlaps or sits inside the other. In code: `align_semiglobal(seq1, seq2, scorer, gap)`.
+- **Reverse complement.** DNA has two strands. `reverse_complement(dna)` flips a sequence to its partner strand (A pairs with T, C with G, and the order reverses). Handy when a match is hiding on the opposite strand.
+- **Banded alignment (for very long sequences).** The normal method needs a grid as big as one sequence times the other. For two 30,000-letter genomes that is almost a billion boxes, which runs out of memory. Banded alignment only fills a narrow strip near the diagonal of the grid, because for similar sequences the best path stays close to the diagonal. It gives the same answer while using a tiny fraction of the memory, and it aligns two whole genomes in about 20 to 30 seconds. In code: `align_banded(seq1, seq2, scorer, gap, band)`.
+
+New notebook parts, all built on the same engine:
+
+- **Parameter sweep.** Slides the gap penalty and plots the score, the percent identity, and the number of gaps together, so you can see the score and the biology disagree.
+- **Is it better than chance?** Shuffles a sequence 200 times and compares the real score to the shuffled ones. A z-score far above 3 means the alignment is real, not luck.
+- **A family tree.** Turns the pairwise alignments of the four hemoglobins into distances and joins the closest ones (UPGMA). The tree matches biology: human and gorilla together, then cow, with zebrafish as the outsider.
+- **The big one.** Aligns two whole 30,000-letter coronavirus genomes with the banded method and plots conservation across the whole genome.
+
+---
+
 ## 7. What each code file does
 
 | File | Plain-English job |

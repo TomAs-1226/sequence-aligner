@@ -177,6 +177,63 @@ public static class Aligner
         return new AlignResult(lead1 + Rev(c1) + tail1, lead2 + Rev(c2) + tail2, best);
     }
 
+    // ---- banded global alignment (for long, similar sequences) ----
+    // Only cells within `band` of the diagonal are computed, so memory is
+    // O(n * band) instead of O(n * m). Exact when the best path stays in the band.
+    public static AlignResult Banded(string s1, string s2, Scorer sc, double gap, int band = -1)
+    {
+        int n = s1.Length, m = s2.Length;
+        if (band < 0) band = Math.Abs(n - m) + Math.Max(64, Math.Max(n, m) / 20);
+        band = Math.Min(band, Math.Max(n, m));
+        int W = 2 * band + 1;
+        double NEG = double.NegativeInfinity;
+        var prev = new double[W];
+        var cur = new double[W];
+        var dir = new byte[(long)(n + 1) * W]; // 0 diag, 1 up, 2 left, 3 invalid
+
+        for (int c = 0; c < W; c++)
+        {
+            int j = -band + c;
+            if (j >= 0 && j <= m) { prev[c] = -j * gap; dir[c] = 2; }
+            else { prev[c] = NEG; dir[c] = 3; }
+        }
+        for (int i = 1; i <= n; i++)
+        {
+            long baseIdx = (long)i * W;
+            for (int c = 0; c < W; c++)
+            {
+                int j = i - band + c;
+                if (j < 0 || j > m) { cur[c] = NEG; dir[baseIdx + c] = 3; continue; }
+                if (j == 0) { cur[c] = -i * gap; dir[baseIdx + c] = 1; continue; }
+                double diag = prev[c] + sc(s1[i - 1], s2[j - 1]);
+                double up = (c + 1 < W) ? prev[c + 1] - gap : NEG;
+                double left = (c - 1 >= 0) ? cur[c - 1] - gap : NEG;
+                double best = diag; byte d = 0;
+                if (up > best) { best = up; d = 1; }
+                if (left > best) { best = left; d = 2; }
+                cur[c] = best; dir[baseIdx + c] = d;
+            }
+            (prev, cur) = (cur, prev);
+        }
+        int cend = m - (n - band);
+        double score = (cend >= 0 && cend < W) ? prev[cend] : NEG;
+
+        var a = new StringBuilder(); var b = new StringBuilder();
+        int ii = n, jj = m;
+        while (ii > 0 || jj > 0)
+        {
+            int c = jj - (ii - band);
+            byte d = (c >= 0 && c < W) ? dir[(long)ii * W + c] : (byte)3;
+            if (ii > 0 && jj > 0 && d == 0) { a.Append(s1[ii - 1]); b.Append(s2[jj - 1]); ii--; jj--; }
+            else if (ii > 0 && d == 1) { a.Append(s1[ii - 1]); b.Append('-'); ii--; }
+            else if (jj > 0 && d == 2) { a.Append('-'); b.Append(s2[jj - 1]); jj--; }
+            else if (ii > 0 && jj > 0) { a.Append(s1[ii - 1]); b.Append(s2[jj - 1]); ii--; jj--; }
+            else if (ii > 0) { a.Append(s1[ii - 1]); b.Append('-'); ii--; }
+            else { a.Append('-'); b.Append(s2[jj - 1]); jj--; }
+        }
+        return new AlignResult(Rev(a), Rev(b), score);
+    }
+
     public static string ReverseComplement(string dna)
     {
         var map = new Dictionary<char, char> { { 'A', 'T' }, { 'T', 'A' }, { 'C', 'G' }, { 'G', 'C' }, { 'N', 'N' }, { 'U', 'A' } };

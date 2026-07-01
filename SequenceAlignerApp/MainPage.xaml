@@ -38,6 +38,7 @@
                     <ComboBoxItem Content="HBB: human vs zebrafish" />
                     <ComboBoxItem Content="SARS spike (DNA)" />
                     <ComboBoxItem Content="SARS spike (protein)" />
+                    <ComboBoxItem Content="SARS whole genomes (30 kb, banded)" />
                 </ComboBox>
 
                 <ComboBox x:Name="TypeBox" Header="Sequence type" HorizontalAlignment="Stretch"
@@ -147,6 +148,19 @@
                 <Expander Header="Dot plot (shared short pieces)" HorizontalAlignment="Stretch">
                     <Canvas x:Name="DotCanvas" Width="340" Height="340"
                             Background="{ThemeResource ControlFillColorDefaultBrush}" />
+                </Expander>
+
+                <Expander Header="3D spike viewer (where the SARS mutations land)" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Load spike structure and color the changes" Click="Load3D_Click" />
+                            <TextBlock x:Name="ThreeDStatus" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="Rotate with the mouse. Red = the amino acids that changed between the 2003 SARS-CoV and SARS-CoV-2, gray = conserved. Needs an internet connection (the structure and the 3D library load from the web)."
+                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
+                        <WebView2 x:Name="Viewer3D" Height="480" />
+                    </StackPanel>
                 </Expander>
             </StackPanel>
         </ScrollViewer>

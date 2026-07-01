@@ -289,6 +289,75 @@ def align_semiglobal(seq1: str, seq2: str, scorer, gap: float):
     return lead1 + "".join(core1) + tail1, lead2 + "".join(core2) + tail2, best
 
 
+def align_banded(seq1: str, seq2: str, scorer, gap: float, band: int | None = None):
+    """Banded global alignment for long, similar sequences. Only cells within
+    `band` of the diagonal are computed, so it uses O(n * band) memory instead
+    of O(n * m). Exact when the best path stays inside the band.
+
+    Returns (row1, row2, score)."""
+    n, m = len(seq1), len(seq2)
+    if band is None:
+        band = abs(n - m) + max(64, max(n, m) // 20)
+    band = min(band, max(n, m))
+    W = 2 * band + 1
+    NEG = float("-inf")
+    prev = [NEG] * W
+    cur = [NEG] * W
+    dirs = []  # 0 diag, 1 up, 2 left, 3 invalid
+
+    row0 = bytearray(W)
+    for c in range(W):
+        j = -band + c
+        if 0 <= j <= m:
+            prev[c] = -j * gap; row0[c] = 2
+        else:
+            prev[c] = NEG; row0[c] = 3
+    dirs.append(row0)
+
+    for i in range(1, n + 1):
+        drow = bytearray(W)
+        si = seq1[i - 1]
+        for c in range(W):
+            j = i - band + c
+            if j < 0 or j > m:
+                cur[c] = NEG; drow[c] = 3; continue
+            if j == 0:
+                cur[c] = -i * gap; drow[c] = 1; continue
+            diag = prev[c] + scorer(si, seq2[j - 1])
+            up = prev[c + 1] - gap if c + 1 < W else NEG
+            left = cur[c - 1] - gap if c - 1 >= 0 else NEG
+            best = diag; d = 0
+            if up > best:
+                best = up; d = 1
+            if left > best:
+                best = left; d = 2
+            cur[c] = best; drow[c] = d
+        dirs.append(drow)
+        prev, cur = cur, prev
+
+    cend = m - (n - band)
+    score = prev[cend] if 0 <= cend < W else NEG
+
+    a, b = [], []
+    i, j = n, m
+    while i > 0 or j > 0:
+        c = j - (i - band)
+        d = dirs[i][c] if 0 <= c < W else 3
+        if i > 0 and j > 0 and d == 0:
+            a.append(seq1[i - 1]); b.append(seq2[j - 1]); i -= 1; j -= 1
+        elif i > 0 and d == 1:
+            a.append(seq1[i - 1]); b.append("-"); i -= 1
+        elif j > 0 and d == 2:
+            a.append("-"); b.append(seq2[j - 1]); j -= 1
+        elif i > 0 and j > 0:
+            a.append(seq1[i - 1]); b.append(seq2[j - 1]); i -= 1; j -= 1
+        elif i > 0:
+            a.append(seq1[i - 1]); b.append("-"); i -= 1
+        else:
+            a.append("-"); b.append(seq2[j - 1]); j -= 1
+    return "".join(reversed(a)), "".join(reversed(b)), score
+
+
 def reverse_complement(dna: str) -> str:
     """Reverse complement of a DNA string (A<->T, C<->G)."""
     comp = {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N",

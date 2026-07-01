@@ -95,6 +95,7 @@ public sealed partial class MainPage : Page
             case 3: Seq1Box.Text = SampleData.HbbHuman; Seq2Box.Text = SampleData.HbbZebrafish; TypeBox.SelectedIndex = 1; break;
             case 4: Seq1Box.Text = SampleData.SarsCovSpikeDna; Seq2Box.Text = SampleData.SarsCov2SpikeDna; TypeBox.SelectedIndex = 0; break;
             case 5: Seq1Box.Text = Aligner.Translate(SampleData.SarsCovSpikeDna); Seq2Box.Text = Aligner.Translate(SampleData.SarsCov2SpikeDna); TypeBox.SelectedIndex = 1; break;
+            case 6: Seq1Box.Text = SampleData.SarsCovGenome; Seq2Box.Text = SampleData.SarsCov2Genome; TypeBox.SelectedIndex = 0; break;
             default: return;
         }
         UpdateVisibility();
@@ -120,6 +121,49 @@ public sealed partial class MainPage : Page
     {
         Seq2Box.Text = Aligner.ReverseComplement(Clean(Seq2Box.Text));
         RunAlign();
+    }
+
+    private async void Load3D_Click(object sender, RoutedEventArgs e)
+    {
+        ThreeDStatus.Text = "Working out which residues changed...";
+        // find the changed residues from the two spike proteins, using our own aligner
+        string p1 = Aligner.Translate(SampleData.SarsCovSpikeDna);
+        string p2 = Aligner.Translate(SampleData.SarsCov2SpikeDna);
+        var aln = await Task.Run(() => Aligner.Global(p1, p2, Aligner.FromMatrix(Aligner.Blosum62), 10));
+        var changed = new List<int>();
+        int resi = 0;
+        for (int i = 0; i < aln.Row1.Length; i++)
+        {
+            char a = aln.Row1[i], b = aln.Row2[i];
+            if (b == '-') continue;
+            resi++;
+            if (a == '-' || a != b) changed.Add(resi);
+        }
+        try
+        {
+            await Viewer3D.EnsureCoreWebView2Async();
+            Viewer3D.NavigateToString(Build3DHtml(string.Join(",", changed)));
+            ThreeDStatus.Text = $"{changed.Count} changed residues shown in red. Drag to rotate.";
+        }
+        catch
+        {
+            ThreeDStatus.Text = "Could not start the 3D viewer. The WebView2 runtime may be missing on this PC.";
+        }
+    }
+
+    private static string Build3DHtml(string resiList)
+    {
+        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
+               "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
+               "<style>html,body{margin:0;height:100%;background:#fff}#v{width:100%;height:100vh;position:relative}</style>" +
+               "</head><body><div id='v'></div><script>" +
+               "var changed=[" + resiList + "];" +
+               "var viewer=$3Dmol.createViewer('v',{backgroundColor:'white'});" +
+               "$3Dmol.download('pdb:6VXX',viewer,{},function(){" +
+               "viewer.setStyle({},{cartoon:{color:'lightgray'}});" +
+               "viewer.addStyle({resi:changed},{cartoon:{color:'red'}});" +
+               "viewer.zoomTo();viewer.render();});" +
+               "</script></body></html>";
     }
 
     private async void ShowMatrix_Click(object sender, RoutedEventArgs e)
@@ -218,13 +262,23 @@ public sealed partial class MainPage : Page
         double open = OpenSlider.Value, ext = ExtendSlider.Value;
 
         long cells = (long)s1.Length * s2.Length;
-        StatusText.Text = cells > 2_000_000 ? "Aligning (large sequences, this can take a few seconds)..." : "";
+        bool huge = cells > 9_000_000; // ~3000x3000; full tables would use too much memory
+        StatusText.Text = huge ? "Long sequences: running a fast banded alignment..."
+                               : (cells > 2_000_000 ? "Aligning..." : "");
 
         AlignResult? res = null;
         string note = "";
         await Task.Run(() =>
         {
-            if (affine && mode == 0) res = Aligner.GlobalAffine(s1, s2, sc, open, ext);
+            if (huge)
+            {
+                res = Aligner.Banded(s1, s2, sc, gap);
+                if (mode != 0 || affine)
+                    note = "These sequences are long, so a fast banded global alignment was used (local, semi-global, and affine are skipped at this size).";
+                else
+                    note = "Long sequences: aligned with the banded method.";
+            }
+            else if (affine && mode == 0) res = Aligner.GlobalAffine(s1, s2, sc, open, ext);
             else if (mode == 1) { res = Aligner.Local(s1, s2, sc, gap); if (affine) note = "Affine gaps apply to global alignment only, so linear was used here."; }
             else if (mode == 2) { res = Aligner.SemiGlobal(s1, s2, sc, gap); if (affine) note = "Affine gaps apply to global alignment only, so linear was used here."; }
             else res = Aligner.Global(s1, s2, sc, gap);
