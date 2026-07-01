@@ -49,6 +49,7 @@
                           SelectionChanged="Params_Changed">
                     <ComboBoxItem Content="Global (whole sequences)" />
                     <ComboBoxItem Content="Local (best stretch)" />
+                    <ComboBoxItem Content="Semi-global (free end gaps)" />
                 </ComboBox>
                 <ComboBox x:Name="MatrixBox" Header="Protein scoring matrix" HorizontalAlignment="Stretch"
                           SelectionChanged="Params_Changed">
@@ -84,6 +85,10 @@
                     <Button Content="Align" Style="{StaticResource AccentButtonStyle}" Click="Align_Click" />
                     <Button Content="Translate DNA to protein" Click="Translate_Click" />
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Reverse complement seq 2" Click="RevComp_Click" />
+                    <Button Content="Show scoring matrix" Click="ShowMatrix_Click" />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
@@ -116,6 +121,7 @@
                     </Border>
                 </StackPanel>
 
+                <TextBlock x:Name="StatsText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock x:Name="StatusText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

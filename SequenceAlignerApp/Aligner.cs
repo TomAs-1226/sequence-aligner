@@ -142,6 +142,53 @@ public static class Aligner
         return new AlignResult(Rev(a), Rev(b), best);
     }
 
+    // ---- semi-global alignment (free end gaps) ----
+    public static AlignResult SemiGlobal(string s1, string s2, Scorer sc, double gap)
+    {
+        int n = s1.Length, m = s2.Length;
+        var S = new double[n + 1, m + 1]; // first row/col stay 0 -> free leading gaps
+        for (int i = 1; i <= n; i++)
+            for (int j = 1; j <= m; j++)
+            {
+                double diag = S[i - 1, j - 1] + sc(s1[i - 1], s2[j - 1]);
+                double up = S[i - 1, j] - gap;
+                double left = S[i, j - 1] - gap;
+                S[i, j] = Math.Max(diag, Math.Max(up, left));
+            }
+        double best = S[n, 0]; int bi = n, bj = 0;
+        for (int j = 0; j <= m; j++) if (S[n, j] >= best) { best = S[n, j]; bi = n; bj = j; }
+        for (int i = 0; i <= n; i++) if (S[i, m] > best) { best = S[i, m]; bi = i; bj = m; }
+
+        var c1 = new StringBuilder(); var c2 = new StringBuilder();
+        int ii = bi, jj = bj;
+        while (ii > 0 && jj > 0)
+        {
+            if (Math.Abs(S[ii, jj] - (S[ii - 1, jj - 1] + sc(s1[ii - 1], s2[jj - 1]))) < Eps)
+            { c1.Append(s1[ii - 1]); c2.Append(s2[jj - 1]); ii--; jj--; }
+            else if (Math.Abs(S[ii, jj] - (S[ii - 1, jj] - gap)) < Eps)
+            { c1.Append(s1[ii - 1]); c2.Append('-'); ii--; }
+            else { c1.Append('-'); c2.Append(s2[jj - 1]); jj--; }
+        }
+        int si = ii, sj = jj;
+        string lead1 = s1.Substring(0, si) + new string('-', sj);
+        string lead2 = new string('-', si) + s2.Substring(0, sj);
+        string tail1 = s1.Substring(bi) + new string('-', m - bj);
+        string tail2 = new string('-', n - bi) + s2.Substring(bj);
+        return new AlignResult(lead1 + Rev(c1) + tail1, lead2 + Rev(c2) + tail2, best);
+    }
+
+    public static string ReverseComplement(string dna)
+    {
+        var map = new Dictionary<char, char> { { 'A', 'T' }, { 'T', 'A' }, { 'C', 'G' }, { 'G', 'C' }, { 'N', 'N' }, { 'U', 'A' } };
+        var sb = new StringBuilder();
+        for (int i = dna.Length - 1; i >= 0; i--)
+        {
+            char c = char.ToUpperInvariant(dna[i]);
+            sb.Append(map.TryGetValue(c, out var r) ? r : c);
+        }
+        return sb.ToString();
+    }
+
     // ---- readouts ----
     public static double PercentIdentity(string r1, string r2)
     {

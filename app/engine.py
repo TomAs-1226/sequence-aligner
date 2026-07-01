@@ -240,6 +240,63 @@ def _traceback_affine(seq1, seq2, scorer, gap_open, gap_extend, M, Ix, Iy, i, j)
 
 
 # ---------------------------------------------------------------------------
+# Semi-global alignment (free end gaps): overhangs at the start and end of
+# either sequence are not penalized. Good when one sequence sits inside or
+# overlaps the other, so global alignment's end-gap penalty is unfair.
+# ---------------------------------------------------------------------------
+
+def align_semiglobal(seq1: str, seq2: str, scorer, gap: float):
+    """Global-style alignment where leading and trailing gaps are free.
+
+    Returns (row1, row2, score) with the full sequences shown, but the score
+    only counts the aligned core (end overhangs are not penalized)."""
+    n, m = len(seq1), len(seq2)
+    s = [[0.0] * (m + 1) for _ in range(n + 1)]  # first row/col stay 0 -> free leading gaps
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            diag = s[i - 1][j - 1] + scorer(seq1[i - 1], seq2[j - 1])
+            up = s[i - 1][j] - gap
+            left = s[i][j - 1] - gap
+            s[i][j] = max(diag, up, left)
+
+    # best end is anywhere in the last row or last column (free trailing gaps)
+    best, bi, bj = s[n][0], n, 0
+    for j in range(m + 1):
+        if s[n][j] >= best:
+            best, bi, bj = s[n][j], n, j
+    for i in range(n + 1):
+        if s[i][m] > best:
+            best, bi, bj = s[i][m], i, m
+
+    eps = 1e-9
+    core1, core2 = [], []
+    i, j = bi, bj
+    while i > 0 and j > 0:
+        if abs(s[i][j] - (s[i - 1][j - 1] + scorer(seq1[i - 1], seq2[j - 1]))) < eps:
+            core1.append(seq1[i - 1]); core2.append(seq2[j - 1]); i -= 1; j -= 1
+        elif abs(s[i][j] - (s[i - 1][j] - gap)) < eps:
+            core1.append(seq1[i - 1]); core2.append("-"); i -= 1
+        else:
+            core1.append("-"); core2.append(seq2[j - 1]); j -= 1
+    si, sj = i, j
+    core1.reverse(); core2.reverse()
+
+    # add the unaligned overhangs as free end gaps
+    lead1 = seq1[:si] + "-" * sj
+    lead2 = "-" * si + seq2[:sj]
+    tail1 = seq1[bi:] + "-" * (m - bj)
+    tail2 = "-" * (n - bi) + seq2[bj:]
+    return lead1 + "".join(core1) + tail1, lead2 + "".join(core2) + tail2, best
+
+
+def reverse_complement(dna: str) -> str:
+    """Reverse complement of a DNA string (A<->T, C<->G)."""
+    comp = {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N",
+            "a": "t", "t": "a", "c": "g", "g": "c", "n": "n", "U": "A", "u": "a"}
+    return "".join(comp.get(c, c) for c in reversed(dna))
+
+
+# ---------------------------------------------------------------------------
 # Readouts
 # ---------------------------------------------------------------------------
 

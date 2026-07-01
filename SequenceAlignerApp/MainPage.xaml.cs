@@ -116,6 +116,41 @@ public sealed partial class MainPage : Page
         RunAlign();
     }
 
+    private void RevComp_Click(object sender, RoutedEventArgs e)
+    {
+        Seq2Box.Text = Aligner.ReverseComplement(Clean(Seq2Box.Text));
+        RunAlign();
+    }
+
+    private async void ShowMatrix_Click(object sender, RoutedEventArgs e)
+    {
+        bool pam = MatrixBox.SelectedIndex == 1;
+        var m = pam ? Aligner.Pam250 : Aligner.Blosum62;
+        const string letters = "ARNDCQEGHILKMFPSTWYV";
+        var sb = new StringBuilder();
+        sb.Append("   ");
+        foreach (char c in letters) sb.Append(c.ToString().PadLeft(4));
+        sb.Append('\n');
+        foreach (char a in letters)
+        {
+            sb.Append(a).Append("  ");
+            foreach (char b in letters) sb.Append(m[(a, b)].ToString().PadLeft(4));
+            sb.Append('\n');
+        }
+        var dialog = new ContentDialog
+        {
+            Title = pam ? "PAM250 scoring matrix" : "BLOSUM62 scoring matrix",
+            CloseButtonText = "Close",
+            XamlRoot = XamlRoot,
+            Content = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = new TextBlock { Text = sb.ToString(), FontFamily = new FontFamily("Consolas"), FontSize = 13 }
+            }
+        };
+        await dialog.ShowAsync();
+    }
+
     private async void LoadFile1_Click(object sender, RoutedEventArgs e)
     {
         var t = await PickFastaAsync();
@@ -173,7 +208,8 @@ public sealed partial class MainPage : Page
         }
 
         bool protein = TypeBox.SelectedIndex == 1;
-        bool local = ModeBox.SelectedIndex == 1;
+        int mode = ModeBox.SelectedIndex; // 0 global, 1 local, 2 semi-global
+        bool local = mode == 1;
         bool affine = GapModelBox.SelectedIndex == 1;
         Scorer sc = protein
             ? Aligner.FromMatrix(MatrixBox.SelectedIndex == 1 ? Aligner.Pam250 : Aligner.Blosum62)
@@ -188,8 +224,9 @@ public sealed partial class MainPage : Page
         string note = "";
         await Task.Run(() =>
         {
-            if (affine && !local) res = Aligner.GlobalAffine(s1, s2, sc, open, ext);
-            else if (local) { res = Aligner.Local(s1, s2, sc, gap); if (affine) note = "Affine gaps apply to global alignment only, so linear was used here."; }
+            if (affine && mode == 0) res = Aligner.GlobalAffine(s1, s2, sc, open, ext);
+            else if (mode == 1) { res = Aligner.Local(s1, s2, sc, gap); if (affine) note = "Affine gaps apply to global alignment only, so linear was used here."; }
+            else if (mode == 2) { res = Aligner.SemiGlobal(s1, s2, sc, gap); if (affine) note = "Affine gaps apply to global alignment only, so linear was used here."; }
             else res = Aligner.Global(s1, s2, sc, gap);
         });
 
@@ -210,6 +247,29 @@ public sealed partial class MainPage : Page
         _plainText = BuildPlainText(res.Row1, res.Row2, local, res);
         BuildColoredView(res.Row1, res.Row2);
         DrawDotPlot(res.Row1.Replace("-", ""), res.Row2.Replace("-", ""));
+        UpdateStats(res);
+    }
+
+    private void UpdateStats(AlignResult res)
+    {
+        string a = res.Row1.Replace("-", "");
+        string b = res.Row2.Replace("-", "");
+        int matches = 0, mism = 0;
+        for (int i = 0; i < res.Row1.Length; i++)
+        {
+            if (res.Row1[i] == '-' || res.Row2[i] == '-') continue;
+            if (res.Row1[i] == res.Row2[i]) matches++; else mism++;
+        }
+        string gc = _protein ? "" : $", GC {Gc(a):0}% / {Gc(b):0}%";
+        StatsText.Text = $"Lengths {a.Length} and {b.Length}{gc}.  Aligned columns {res.Row1.Length}.  Matches {matches}, mismatches {mism}.";
+    }
+
+    private static double Gc(string s)
+    {
+        if (s.Length == 0) return 0;
+        int gc = 0;
+        foreach (char c in s) if (c == 'G' || c == 'C') gc++;
+        return 100.0 * gc / s.Length;
     }
 
     private static string Format(List<int> lengths)
@@ -228,14 +288,20 @@ public sealed partial class MainPage : Page
         {
             int end = Math.Min(start + width, shown);
             var p1 = new Paragraph();
+            var pm = new Paragraph();
             var p2 = new Paragraph();
             for (int i = start; i < end; i++)
             {
-                var brush = (r1[i] == '-' || r2[i] == '-') ? GrayB : (r1[i] == r2[i] ? GreenB : RedB);
+                bool gap = r1[i] == '-' || r2[i] == '-';
+                bool match = !gap && r1[i] == r2[i];
+                var brush = gap ? GrayB : (match ? GreenB : RedB);
+                char mc = gap ? ' ' : (match ? '|' : '.');
                 p1.Inlines.Add(new Run { Text = r1[i].ToString(), Foreground = brush });
+                pm.Inlines.Add(new Run { Text = mc.ToString(), Foreground = brush });
                 p2.Inlines.Add(new Run { Text = r2[i].ToString(), Foreground = brush });
             }
             AlignmentView.Blocks.Add(p1);
+            AlignmentView.Blocks.Add(pm);
             AlignmentView.Blocks.Add(p2);
             AlignmentView.Blocks.Add(new Paragraph());
         }
