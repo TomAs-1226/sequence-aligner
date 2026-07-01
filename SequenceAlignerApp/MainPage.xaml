@@ -196,6 +196,19 @@
                         </ScrollViewer>
                     </StackPanel>
                 </Expander>
+
+                <Expander Header="AI protein analysis (transformer on the GPU / NPU)" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Analyze with the AI" Click="Analyze_Click" />
+                            <TextBlock x:Name="AiStatus" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="A transformer language model, trained from scratch on thousands of proteins, turns each sequence into a vector. It scores how related your two sequences are (beyond what the alignment sees), guesses the family of sequence 2, and finds the most similar proteins in a built-in database. Runs on the GPU or NPU with Windows ML."
+                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
+                        <TextBlock x:Name="AiResults" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
     </Grid>

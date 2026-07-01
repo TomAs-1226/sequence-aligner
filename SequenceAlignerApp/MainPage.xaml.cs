@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
@@ -290,6 +291,46 @@ public sealed partial class MainPage : Page
         int h = 0, sh = 0, co = 0;
         foreach (char c in ss) { if (c == 'H') h++; else if (c == 'E') sh++; else co++; }
         SsStatus.Text = $"{_ss.Provider}: {h} helix, {sh} sheet, {co} coil";
+    }
+
+    private EmbeddingModel? _emb;
+    private ProteinDatabase? _db;
+
+    private async void Analyze_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastResult == null) { AiStatus.Text = "Run a protein alignment first."; return; }
+        if (!_protein) { AiStatus.Text = "AI analysis is for protein alignments. Use 'Translate DNA to protein' first."; return; }
+        _emb ??= new EmbeddingModel();
+        _db ??= new ProteinDatabase();
+        if (!_emb.Ready) { AiStatus.Text = "The AI model could not load (plm_embed.onnx missing)."; return; }
+
+        string s1 = _lastResult.Row1.Replace("-", "");
+        string s2 = _lastResult.Row2.Replace("-", "");
+        AiStatus.Text = $"Running the transformer on the {_emb.Provider}...";
+        var (e1, e2) = await Task.Run(() => (_emb.Embed(s1), _emb.Embed(s2)));
+        if (e1 == null || e2 == null) { AiStatus.Text = "Embedding failed."; return; }
+
+        var sb = new StringBuilder();
+        float sim = EmbeddingModel.Cosine(e1, e2);
+        double identity = Aligner.PercentIdentity(_lastResult.Row1, _lastResult.Row2);
+        sb.AppendLine($"AI similarity (seq 1 vs seq 2): {sim * 100:0.0}%    (alignment identity: {identity:0.0}%)");
+
+        if (_db.Entries.Count > 0)
+        {
+            var top = _db.Entries
+                .Select(en => (en, s: EmbeddingModel.Cosine(e2, en.Emb)))
+                .OrderByDescending(x => x.s)
+                .Take(5)
+                .ToList();
+            string fam = top.GroupBy(x => x.en.Family).OrderByDescending(g => g.Count()).First().Key;
+            sb.AppendLine($"Predicted family of sequence 2: {fam}");
+            sb.AppendLine();
+            sb.AppendLine("Most similar proteins in the database:");
+            foreach (var x in top)
+                sb.AppendLine($"  {x.s * 100:0.0}%   {x.en.Family}  -  {x.en.Name}");
+        }
+        AiResults.Text = sb.ToString();
+        AiStatus.Text = $"Done on the {_emb.Provider}.";
     }
 
     private async void ShowMatrix_Click(object sender, RoutedEventArgs e)

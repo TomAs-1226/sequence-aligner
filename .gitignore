@@ -27,3 +27,7 @@ app/build_notebook.py
 app/sections.json
 app/spike_3d_cells.json
 blosum62_heatmap.png
+
+# large ML training artifacts (regenerate with build_plm.py / export_plm.py)
+app/plm.pt
+app/plm_embed.onnx

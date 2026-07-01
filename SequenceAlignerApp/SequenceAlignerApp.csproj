@@ -58,6 +58,12 @@
     <Content Include="ss_model.onnx" Condition="Exists('ss_model.onnx')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="plm_embed.onnx" Condition="Exists('plm_embed.onnx')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="plm_db.tsv" Condition="Exists('plm_db.tsv')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <!--
