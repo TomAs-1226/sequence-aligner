@@ -163,6 +163,15 @@
                         </StackPanel>
                         <TextBlock Text="Predict from sequence folds sequence 2 with ESMFold, so any protein alignment (up to 400 residues) gets a 3D view, colored red where the two sequences differ. From PDB ID loads a known structure instead (for example 6VXX for the SARS spike, which is too long to predict). Needs an internet connection."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <ComboBox x:Name="RepBox" Width="130" SelectedIndex="0" SelectionChanged="Rep_Changed">
+                                <ComboBoxItem Content="Cartoon" />
+                                <ComboBoxItem Content="Sticks" />
+                                <ComboBoxItem Content="Spheres" />
+                            </ComboBox>
+                            <CheckBox x:Name="SpinCheck" Content="Spin" Checked="Spin_Toggled" Unchecked="Spin_Toggled" VerticalAlignment="Center" />
+                            <Button Content="Save structure (.pdb)" Click="SaveStructure_Click" />
+                        </StackPanel>
                         <WebView2 x:Name="Viewer3D" Height="480" />
                     </StackPanel>
                 </Expander>

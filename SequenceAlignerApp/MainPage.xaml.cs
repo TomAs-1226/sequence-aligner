@@ -128,6 +128,7 @@ public sealed partial class MainPage : Page
     }
 
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(90) };
+    private string? _last3dPdb;
 
     private async void Load3D_Click(object sender, RoutedEventArgs e)
     {
@@ -143,6 +144,7 @@ public sealed partial class MainPage : Page
             if (res.Row1[i] == '-' || res.Row1[i] != res.Row2[i]) changed.Add(resi);
         }
         string resiList = string.Join(",", changed);
+        string rep = RepName();
         bool predict = StructureSourceBox.SelectedIndex == 0;
         try
         {
@@ -167,15 +169,17 @@ public sealed partial class MainPage : Page
                     ThreeDStatus.Text = "The structure prediction service did not respond. Try again, or use 'From PDB ID'.";
                     return;
                 }
+                _last3dPdb = pdb;
                 string b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(pdb));
-                Viewer3D.NavigateToString(Build3DHtmlFromText(b64, resiList));
+                Viewer3D.NavigateToString(Build3DHtml($"viewer.addModel(atob('{b64}'),'pdb');ready();", resiList, rep));
                 ThreeDStatus.Text = $"Predicted structure of sequence 2. {changed.Count} differing residues in red. Drag to rotate.";
             }
             else
             {
                 string pdbId = string.IsNullOrWhiteSpace(PdbBox.Text) ? "6VXX" : PdbBox.Text.Trim();
+                _last3dPdb = null;
                 ThreeDStatus.Text = $"Loading {pdbId}...";
-                Viewer3D.NavigateToString(Build3DHtmlFromPdbId(pdbId, resiList));
+                Viewer3D.NavigateToString(Build3DHtml($"$3Dmol.download('pdb:{pdbId}',viewer,{{}},function(){{ready();}});", resiList, rep));
                 ThreeDStatus.Text = $"{pdbId}: {changed.Count} differing residues in red. Drag to rotate.";
             }
         }
@@ -184,6 +188,8 @@ public sealed partial class MainPage : Page
             ThreeDStatus.Text = "Could not start the 3D viewer. The WebView2 runtime may be missing on this PC.";
         }
     }
+
+    private string RepName() => RepBox.SelectedIndex switch { 1 => "stick", 2 => "sphere", _ => "cartoon" };
 
     // Fold a protein sequence into a 3D structure with the ESMFold web service.
     private async Task<string?> FoldAsync(string seq)
@@ -198,35 +204,45 @@ public sealed partial class MainPage : Page
         catch { return null; }
     }
 
-    private static string Build3DHtmlFromText(string pdbBase64, string resiList)
+    private static string Build3DHtml(string loadJs, string resiList, string rep)
     {
         return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
                "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
                "<style>html,body{margin:0;height:100%;background:#fff}#v{width:100%;height:100vh;position:relative}</style>" +
                "</head><body><div id='v'></div><script>" +
                "var changed=[" + resiList + "];" +
-               "var pdb=atob('" + pdbBase64 + "');" +
                "var viewer=$3Dmol.createViewer('v',{backgroundColor:'white'});" +
-               "viewer.addModel(pdb,'pdb');" +
-               "viewer.setStyle({},{cartoon:{color:'lightgray'}});" +
-               "viewer.addStyle({resi:changed},{cartoon:{color:'red'}});" +
-               "viewer.zoomTo();viewer.render();" +
+               "window.viewer=viewer;window.changed=changed;" +
+               "function styleFor(rep,color){if(rep=='stick')return{stick:{color:color,radius:0.18}};if(rep=='sphere')return{sphere:{color:color,scale:0.3}};return{cartoon:{color:color}};}" +
+               "window.applyStyle=function(rep){viewer.setStyle({},styleFor(rep,'lightgray'));viewer.addStyle({resi:changed},styleFor(rep,'red'));viewer.render();};" +
+               "window.setSpin=function(on){viewer.spin(on?'y':false);};" +
+               "function ready(){window.applyStyle('" + rep + "');viewer.zoomTo();viewer.render();}" +
+               loadJs +
                "</script></body></html>";
     }
 
-    private static string Build3DHtmlFromPdbId(string pdb, string resiList)
+    private async void Rep_Changed(object sender, SelectionChangedEventArgs e)
     {
-        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
-               "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
-               "<style>html,body{margin:0;height:100%;background:#fff}#v{width:100%;height:100vh;position:relative}</style>" +
-               "</head><body><div id='v'></div><script>" +
-               "var changed=[" + resiList + "];" +
-               "var viewer=$3Dmol.createViewer('v',{backgroundColor:'white'});" +
-               "$3Dmol.download('pdb:" + pdb + "',viewer,{},function(){" +
-               "viewer.setStyle({},{cartoon:{color:'lightgray'}});" +
-               "viewer.addStyle({resi:changed},{cartoon:{color:'red'}});" +
-               "viewer.zoomTo();viewer.render();});" +
-               "</script></body></html>";
+        if (!_ready || Viewer3D.CoreWebView2 == null) return;
+        try { await Viewer3D.ExecuteScriptAsync($"window.applyStyle && window.applyStyle('{RepName()}')"); } catch { }
+    }
+
+    private async void Spin_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || Viewer3D.CoreWebView2 == null) return;
+        bool on = SpinCheck.IsChecked == true;
+        try { await Viewer3D.ExecuteScriptAsync($"window.setSpin && window.setSpin({(on ? "true" : "false")})"); } catch { }
+    }
+
+    private async void SaveStructure_Click(object sender, RoutedEventArgs e)
+    {
+        if (_last3dPdb == null) { ThreeDStatus.Text = "Load a predicted structure first (only predicted structures can be saved from here)."; return; }
+        var picker = new FileSavePicker();
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+        picker.FileTypeChoices.Add("PDB structure", new List<string> { ".pdb" });
+        picker.SuggestedFileName = "structure";
+        var file = await picker.PickSaveFileAsync();
+        if (file != null) await FileIO.WriteTextAsync(file, _last3dPdb);
     }
 
     private async void ShowMatrix_Click(object sender, RoutedEventArgs e)
