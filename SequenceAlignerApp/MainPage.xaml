@@ -146,18 +146,18 @@
                 </StackPanel>
 
                 <Expander Header="Dot plot (shared short pieces)" HorizontalAlignment="Stretch">
-                    <Canvas x:Name="DotCanvas" Width="340" Height="340"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}" />
+                    <Image x:Name="DotImage" Width="340" Height="340" Stretch="None" HorizontalAlignment="Left" />
                 </Expander>
 
-                <Expander Header="3D spike viewer (where the SARS mutations land)" HorizontalAlignment="Stretch">
+                <Expander Header="3D viewer (color a structure by the current alignment)" HorizontalAlignment="Stretch">
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Load spike structure and color the changes" Click="Load3D_Click" />
+                            <Button Content="Show current alignment in 3D" Click="Load3D_Click" />
+                            <TextBox x:Name="PdbBox" Text="6VXX" Width="110" PlaceholderText="PDB ID" VerticalAlignment="Center" />
                             <TextBlock x:Name="ThreeDStatus" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <TextBlock Text="Rotate with the mouse. Red = the amino acids that changed between the 2003 SARS-CoV and SARS-CoV-2, gray = conserved. Needs an internet connection (the structure and the 3D library load from the web)."
+                        <TextBlock Text="Loads the structure you name (a PDB ID) and colors it red where your two sequences differ, gray where they match, using sequence 2's residue numbers. Best for a protein alignment whose sequence 2 matches the structure. Example: load the SARS spike (protein) sample and use 6VXX. Needs internet."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
                         <WebView2 x:Name="Viewer3D" Height="480" />
                     </StackPanel>

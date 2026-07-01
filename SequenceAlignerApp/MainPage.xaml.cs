@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -25,6 +27,7 @@ public sealed partial class MainPage : Page
     private int _generation;
     private string _plainText = "";
     private bool _protein;
+    private AlignResult? _lastResult;
 
     public MainPage()
     {
@@ -125,25 +128,24 @@ public sealed partial class MainPage : Page
 
     private async void Load3D_Click(object sender, RoutedEventArgs e)
     {
-        ThreeDStatus.Text = "Working out which residues changed...";
-        // find the changed residues from the two spike proteins, using our own aligner
-        string p1 = Aligner.Translate(SampleData.SarsCovSpikeDna);
-        string p2 = Aligner.Translate(SampleData.SarsCov2SpikeDna);
-        var aln = await Task.Run(() => Aligner.Global(p1, p2, Aligner.FromMatrix(Aligner.Blosum62), 10));
+        if (_lastResult == null) { ThreeDStatus.Text = "Run an alignment first."; return; }
+        var res = _lastResult;
+        // residues (in sequence 2's numbering) where the two sequences differ
         var changed = new List<int>();
         int resi = 0;
-        for (int i = 0; i < aln.Row1.Length; i++)
+        for (int i = 0; i < res.Row1.Length; i++)
         {
-            char a = aln.Row1[i], b = aln.Row2[i];
-            if (b == '-') continue;
+            if (res.Row2[i] == '-') continue;
             resi++;
-            if (a == '-' || a != b) changed.Add(resi);
+            if (res.Row1[i] == '-' || res.Row1[i] != res.Row2[i]) changed.Add(resi);
         }
+        string pdb = string.IsNullOrWhiteSpace(PdbBox.Text) ? "6VXX" : PdbBox.Text.Trim();
+        ThreeDStatus.Text = $"Loading {pdb}...";
         try
         {
             await Viewer3D.EnsureCoreWebView2Async();
-            Viewer3D.NavigateToString(Build3DHtml(string.Join(",", changed)));
-            ThreeDStatus.Text = $"{changed.Count} changed residues shown in red. Drag to rotate.";
+            Viewer3D.NavigateToString(Build3DHtml(pdb, string.Join(",", changed)));
+            ThreeDStatus.Text = $"{pdb}: {changed.Count} differing residues in red (from the current alignment). Drag to rotate.";
         }
         catch
         {
@@ -151,7 +153,7 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private static string Build3DHtml(string resiList)
+    private static string Build3DHtml(string pdb, string resiList)
     {
         return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
                "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
@@ -159,7 +161,7 @@ public sealed partial class MainPage : Page
                "</head><body><div id='v'></div><script>" +
                "var changed=[" + resiList + "];" +
                "var viewer=$3Dmol.createViewer('v',{backgroundColor:'white'});" +
-               "$3Dmol.download('pdb:6VXX',viewer,{},function(){" +
+               "$3Dmol.download('pdb:" + pdb + "',viewer,{},function(){" +
                "viewer.setStyle({},{cartoon:{color:'lightgray'}});" +
                "viewer.addStyle({resi:changed},{cartoon:{color:'red'}});" +
                "viewer.zoomTo();viewer.render();});" +
@@ -293,6 +295,7 @@ public sealed partial class MainPage : Page
 
     private void Render(AlignResult res, bool local)
     {
+        _lastResult = res;
         ScoreText.Text = res.Score.ToString("0.##");
         IdentityText.Text = $"{Aligner.PercentIdentity(res.Row1, res.Row2):0.0}%";
         var (count, lengths) = Aligner.GapStats(res.Row1, res.Row2);
@@ -393,23 +396,19 @@ public sealed partial class MainPage : Page
         return sb.ToString();
     }
 
+    // Renders to a bitmap, so it works even for whole genomes (no skipping).
     private void DrawDotPlot(string s1, string s2)
     {
-        DotCanvas.Children.Clear();
-        double W = DotCanvas.Width, H = DotCanvas.Height;
-        if (s1.Length == 0 || s2.Length == 0) return;
-        if (s1.Length > 900 || s2.Length > 900)
-        {
-            DotCanvas.Children.Add(new TextBlock
-            {
-                Text = "Sequences are long, so the dot plot is skipped for speed.",
-                Foreground = GrayB,
-                TextWrapping = TextWrapping.Wrap,
-                Width = W - 20
-            });
-            return;
-        }
-        int k = _protein ? 2 : 3;
+        const int WIDTH = 340, HEIGHT = 340;
+        if (s1.Length == 0 || s2.Length == 0) { DotImage.Source = null; return; }
+
+        // bigger window for longer sequences keeps the plot from filling with noise
+        int maxlen = Math.Max(s1.Length, s2.Length);
+        int k = _protein ? (maxlen > 1500 ? 3 : 2) : (maxlen > 4000 ? 11 : (maxlen > 800 ? 6 : 4));
+
+        var px = new byte[WIDTH * HEIGHT * 4];
+        for (int i = 0; i < px.Length; i++) px[i] = 255; // white background (BGRA)
+
         var index = new Dictionary<string, List<int>>();
         for (int j = 0; j + k <= s2.Length; j++)
         {
@@ -417,17 +416,22 @@ public sealed partial class MainPage : Page
             if (!index.TryGetValue(key, out var list)) { list = new List<int>(); index[key] = list; }
             list.Add(j);
         }
-        double sx = W / s2.Length, sy = H / s1.Length;
         for (int i = 0; i + k <= s1.Length; i++)
         {
             if (!index.TryGetValue(s1.Substring(i, k), out var js)) continue;
+            int y = (int)((long)i * (HEIGHT - 1) / s1.Length);
             foreach (int j in js)
             {
-                var dot = new Rectangle { Width = 2, Height = 2, Fill = GreenB };
-                Canvas.SetLeft(dot, j * sx);
-                Canvas.SetTop(dot, i * sy);
-                DotCanvas.Children.Add(dot);
+                int x = (int)((long)j * (WIDTH - 1) / s2.Length);
+                int idx = (y * WIDTH + x) * 4;
+                px[idx] = 0x46; px[idx + 1] = 0x7D; px[idx + 2] = 0x2E; px[idx + 3] = 255; // green #2E7D46
             }
         }
+
+        var wb = new WriteableBitmap(WIDTH, HEIGHT);
+        using (var stream = wb.PixelBuffer.AsStream())
+            stream.Write(px, 0, px.Length);
+        wb.Invalidate();
+        DotImage.Source = wb;
     }
 }
