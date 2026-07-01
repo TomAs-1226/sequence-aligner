@@ -136,6 +136,7 @@ New notebook parts, all built on the same engine:
 - **Is it better than chance?** Shuffles a sequence 200 times and compares the real score to the shuffled ones. A z-score far above 3 means the alignment is real, not luck.
 - **A family tree.** Turns the pairwise alignments of the four hemoglobins into distances and joins the closest ones (UPGMA). The tree matches biology: human and gorilla together, then cow, with zebrafish as the outsider.
 - **The big one.** Aligns two whole 30,000-letter coronavirus genomes with the banded method and plots conservation across the whole genome.
+- **Using the GPU.** The significance test aligns the query against many shuffled sequences, and those are all independent, so they can run at the same time on a graphics card. This part aligns against 2,000 shuffled sequences at once. On a laptop with an Intel Arc GPU it runs about 28 times faster than the processor alone, and it gives the exact same scores. The code (`app/gpu_align.py`) uses the GPU if there is one and falls back to the processor if not.
 
 ---
 

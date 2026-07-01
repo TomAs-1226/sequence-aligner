@@ -7,3 +7,9 @@ py3Dmol        # only for the interactive 3D viewer in the notebook
 jupyterlab     # to open and run the notebook locally
 ipywidgets     # the interactive sliders in the notebook
 nbconvert      # to export or run the notebook from the command line
+
+# Optional, only for the GPU part (Part 16). In Colab, torch is preinstalled.
+# For an Intel Arc GPU on Windows:
+#   pip install torch --index-url https://download.pytorch.org/whl/xpu
+# For an NVIDIA GPU, install the CUDA build of torch. Without a GPU it uses the CPU.
+torch          # optional; GPU acceleration for batched alignment
