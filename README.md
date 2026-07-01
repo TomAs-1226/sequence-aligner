@@ -24,6 +24,7 @@ Features:
 - Translate DNA to protein, reverse complement, a dot plot, and copy or save the alignment.
 - A 3D viewer that predicts your protein's structure (ESMFold) or loads a PDB, and colors it by where the two sequences differ.
 - An AI secondary-structure predictor (helix / sheet / coil) that runs on the GPU or NPU with Windows ML.
+- An AI protein-analysis panel driven by a transformer language model trained from scratch: it scores how related two proteins are, predicts a protein's family, and finds similar proteins in a built-in database, also on the GPU or NPU.
 
 Build and run (needs the .NET 9 SDK; the Windows App SDK restores automatically):
 
@@ -55,6 +56,14 @@ python run.py
 | `run.py`, `run.bat` | One-click runner that fills the Output folder |
 | `Alignment/` | The original algorithm files and the sequence data |
 | `figures/` | The charts as images |
+| `TECHNICAL_DOCUMENTATION.md` | Full write-up of every algorithm and model (also as `.docx`) |
+| `SUBMISSION_AND_DEMO_GUIDE.md` | What to submit and how to run a live demo (also as `.docx`) |
+
+## Documentation
+
+- **[TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)** explains every algorithm and model in detail: the five aligners (global, local, semi-global, affine, banded), the supporting algorithms and scoring matrices, the GPU batched aligner, the two on-device AI models, and the app. A Word version (`TECHNICAL_DOCUMENTATION.docx`) is included for reading offline.
+- **[SUBMISSION_AND_DEMO_GUIDE.md](SUBMISSION_AND_DEMO_GUIDE.md)** lists exactly what to hand in and gives a rehearsed, timed live-demo script for both the notebook and the app.
+- A shorter plain-English overview is in [`Alignment/DOCUMENTATION.md`](Alignment/DOCUMENTATION.md).
 
 ## The science, in one line
 
