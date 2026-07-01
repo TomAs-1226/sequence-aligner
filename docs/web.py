@@ -143,6 +143,49 @@ def significance_json(params_json):
     })
 
 
+def trace_align_json(params_json):
+    """Run the alignment under a line tracer so the page can show exactly which
+    lines of engine.py executed. Uses a short slice of the sequences so the
+    trace is fast; the code path is the same as the full alignment."""
+    import sys
+    p = json.loads(params_json)
+    seqtype = p["seqtype"]
+    seq1 = _clean(p["seq1"], seqtype)[:70]
+    seq2 = _clean(p["seq2"], seqtype)[:70]
+    if not seq1 or not seq2:
+        return json.dumps({"error": "Enter two sequences first."})
+    scorer = _scorer_for(p)
+    gap = float(p["gap"])
+    mode = p["mode"]
+    gapmodel = p["gapmodel"]
+    engine_file = e.__file__
+
+    seen = set()
+    order = []
+
+    def tracer(frame, event, arg):
+        if event == "line" and frame.f_code.co_filename == engine_file:
+            ln = frame.f_lineno
+            if ln not in seen:
+                seen.add(ln)
+                order.append(ln)
+        return tracer
+
+    sys.settrace(tracer)
+    try:
+        if gapmodel == "affine" and mode == "global":
+            entry = "align_global_affine"
+            e.align_global_affine(seq1, seq2, scorer, float(p["gap_open"]), float(p["gap_extend"]))
+        else:
+            entry = {"local": "align_local", "semiglobal": "align_semiglobal"}.get(mode, "align_global")
+            _align(seq1, seq2, scorer, gap, mode)
+    finally:
+        sys.settrace(None)
+
+    return json.dumps({"lines": sorted(seen), "order": order, "entry": entry,
+                       "total": len(seen)})
+
+
 def do_translate(payload):
     # payload is "seq1||seq2"; translate both, return a JSON list.
     parts = payload.split("||")

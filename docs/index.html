@@ -98,6 +98,7 @@
       <div class="presets">
         <button class="good" id="presetGood">Sensible settings</button>
         <button class="bad" id="presetBad">Careless settings</button>
+        <button class="fun" id="presetRandom">Surprise me</button>
       </div>
     </section>
 
@@ -112,17 +113,20 @@
       <p class="used" id="stUsed"></p>
 
       <div class="aln" id="aln">Move a slider or load an example to align.</div>
+      <canvas id="consv" width="900" height="14" class="consv"></canvas>
       <div class="legend">
         <span class="m"><b>ABC</b> match</span>
         <span class="x"><b>ABC</b> mismatch</span>
         <span class="g"><b>-</b> gap</span>
-        <span>The middle line marks matches with <b>|</b>.</span>
+        <span>The middle line marks matches with <b>|</b>. The bar under the alignment is a conservation map.</span>
       </div>
 
       <div class="tools">
+        <button id="btnInspect" class="primary">Inspect the code</button>
         <button id="btnTranslate">Translate DNA to protein</button>
         <button id="btnRevcomp">Reverse complement seq 2</button>
         <button id="btnCopy">Copy alignment</button>
+        <button id="btnDownload">Download</button>
       </div>
 
       <div class="plot-wrap">
@@ -155,6 +159,22 @@
     This page runs our real <code>engine.py</code> with <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a> (Python compiled to WebAssembly). No server, nothing to install.
     <a href="writeup.html">Read the write-up</a> for the good-versus-bad story and how we judge a good alignment.
   </p>
+</div>
+
+<div id="codeModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3>The Python that just ran</h3>
+        <p id="codeSub" class="cap"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="btnReplay" class="ex-btn">Replay</button>
+        <button id="btnCloseModal" class="ex-btn ghost">Close</button>
+      </div>
+    </div>
+    <div id="codeView" class="code-view"></div>
+  </div>
 </div>
 
 <script src="samples.js"></script>

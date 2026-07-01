@@ -31,6 +31,8 @@ function startWorker() {
       setBtn("btnSig", false, "Test against shuffled sequences");
       if (msg.data.error) { $("sigCap").className = "cap no"; $("sigCap").textContent = msg.data.error; }
       else drawSig(msg.data);
+    } else if (msg.type === "trace") {
+      onTrace(msg.data);
     } else if (msg.type === "translate") {
       applyTranslate(msg.data);
     } else if (msg.type === "revcomp") {
@@ -76,6 +78,19 @@ function showResult(d) {
     `${d.used}. Aligned ${d.len1} vs ${d.len2} letters into ${d.cols} columns.`;
   $("aln").innerHTML = renderAln(d.row1, d.match, d.row2);
   window._lastAln = d.row1 + "\n" + d.match + "\n" + d.row2;
+  drawConsv(d.match);
+}
+
+function drawConsv(match) {
+  const cv = $("consv"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.fillStyle = "#0c1a17"; ctx.fillRect(0, 0, W, H);
+  const n = match.length; if (!n) return;
+  const bw = W / n;
+  for (let i = 0; i < n; i++) {
+    const c = match[i];
+    ctx.fillStyle = c === "|" ? "#4cc27a" : (c === "." ? "#e0a13c" : "#3a4c46");
+    ctx.fillRect(i * bw, 0, Math.max(1, bw + 0.6), H);
+  }
 }
 
 function colorSeq(s, other) {
@@ -318,6 +333,73 @@ function drawSig(d) {
     `The real score ${d.real} is <b>${d.z} standard deviations</b> above the shuffled average (${d.n} shuffles). ` +
     (strong ? "That is far beyond chance, so this match is real." : "That is not clearly better than chance for these settings.");
 }
+
+// ---------- inspect the code (floating window) ----------
+function currentParams() { return { ...state, seq1: $("seq1").value, seq2: $("seq2").value }; }
+
+let engineSrc = null, lastOrder = [], replayTimer = null;
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+async function ensureCode() {
+  if (engineSrc) return;
+  engineSrc = await fetch("engine.py").then((r) => r.text());
+  $("codeView").innerHTML = engineSrc.split("\n").map((ln, i) =>
+    `<div class="cl" data-ln="${i + 1}"><span class="ln">${i + 1}</span><code>${esc(ln) || " "}</code></div>`).join("");
+}
+$("btnInspect").onclick = () => {
+  if (!ready) return;
+  setBtn("btnInspect", true, "Inspect the code");
+  ensureCode();
+  worker.postMessage({ type: "trace", id: ++reqId, params: currentParams() });
+};
+async function onTrace(d) {
+  setBtn("btnInspect", false, "Inspect the code");
+  if (d.error) { alert(d.error); return; }
+  await ensureCode();
+  const view = $("codeView");
+  view.querySelectorAll(".cl").forEach((el) => el.classList.remove("hot", "active"));
+  d.lines.forEach((ln) => { const el = view.querySelector(`.cl[data-ln="${ln}"]`); if (el) el.classList.add("hot"); });
+  $("codeSub").textContent =
+    `${d.total} lines of engine.py ran, starting in ${d.entry}(). The highlighted lines are the exact code that produced your alignment.`;
+  lastOrder = d.order || [];
+  $("codeModal").classList.remove("hidden");
+  const first = view.querySelector(`.cl[data-ln="${lastOrder[0]}"]`);
+  if (first) first.scrollIntoView({ block: "center" });
+  replay();
+}
+function replay() {
+  const view = $("codeView"); clearInterval(replayTimer);
+  view.querySelectorAll(".cl.active").forEach((el) => el.classList.remove("active"));
+  let i = 0;
+  replayTimer = setInterval(() => {
+    if (i > 0) { const p = view.querySelector(`.cl[data-ln="${lastOrder[i - 1]}"]`); if (p) p.classList.remove("active"); }
+    if (i >= lastOrder.length) { clearInterval(replayTimer); return; }
+    const el = view.querySelector(`.cl[data-ln="${lastOrder[i]}"]`);
+    if (el) { el.classList.add("active"); el.scrollIntoView({ block: "nearest" }); }
+    i++;
+  }, 45);
+}
+function closeModal() { $("codeModal").classList.add("hidden"); clearInterval(replayTimer); }
+$("btnCloseModal").onclick = closeModal;
+$("btnReplay").onclick = replay;
+$("codeModal").onclick = (ev) => { if (ev.target === $("codeModal")) closeModal(); };
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeModal(); });
+
+// ---------- download + surprise me ----------
+$("btnDownload").onclick = () => {
+  if (!window._lastAln) return;
+  const blob = new Blob([window._lastAln], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "alignment.txt"; a.click();
+  URL.revokeObjectURL(a.href); flash("btnDownload", "saved");
+};
+$("presetRandom").onclick = () => {
+  state.gapmodel = "linear";
+  $("gapSeg").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.v === "linear"));
+  updateGapModel();
+  const rnd = (min, max, step) => Math.round((min + Math.random() * (max - min)) / step) * step;
+  state.match = rnd(0, 8, 0.5); state.mismatch = rnd(0, 8, 0.5); state.gap = rnd(0, 12, 0.5);
+  syncSliders(); align(true);
+};
 
 // ---------- init ----------
 seg("typeSeg", "seqtype", () => { state.gap = state.seqtype === "dna" ? 2 : 10; setType(state.seqtype); syncSliders(); });

@@ -36,6 +36,9 @@ onmessage = async (ev) => {
     } else if (msg.type === "significance") {
       const out = web.significance_json(JSON.stringify(msg.params));
       postMessage({ type: "significance", id: msg.id, data: JSON.parse(out) });
+    } else if (msg.type === "trace") {
+      const out = web.trace_align_json(JSON.stringify(msg.params));
+      postMessage({ type: "trace", id: msg.id, data: JSON.parse(out) });
     } else if (msg.type === "translate") {
       postMessage({ type: "translate", id: msg.id, data: web.do_translate(msg.seq) });
     } else if (msg.type === "revcomp") {
