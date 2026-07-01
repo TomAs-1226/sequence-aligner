@@ -153,11 +153,15 @@
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Show current alignment in 3D" Click="Load3D_Click" />
-                            <TextBox x:Name="PdbBox" Text="6VXX" Width="110" PlaceholderText="PDB ID" VerticalAlignment="Center" />
+                            <ComboBox x:Name="StructureSourceBox" Width="190" SelectedIndex="0">
+                                <ComboBoxItem Content="Predict from sequence" />
+                                <ComboBoxItem Content="From PDB ID" />
+                            </ComboBox>
+                            <TextBox x:Name="PdbBox" Text="6VXX" Width="90" PlaceholderText="PDB ID" VerticalAlignment="Center" />
                             <TextBlock x:Name="ThreeDStatus" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <TextBlock Text="Loads the structure you name (a PDB ID) and colors it red where your two sequences differ, gray where they match, using sequence 2's residue numbers. Best for a protein alignment whose sequence 2 matches the structure. Example: load the SARS spike (protein) sample and use 6VXX. Needs internet."
+                        <TextBlock Text="Predict from sequence folds sequence 2 with ESMFold, so any protein alignment (up to 400 residues) gets a 3D view, colored red where the two sequences differ. From PDB ID loads a known structure instead (for example 6VXX for the SARS spike, which is too long to predict). Needs an internet connection."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
                         <WebView2 x:Name="Viewer3D" Height="480" />
                     </StackPanel>

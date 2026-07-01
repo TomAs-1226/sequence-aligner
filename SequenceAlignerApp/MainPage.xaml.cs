@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
@@ -126,6 +127,8 @@ public sealed partial class MainPage : Page
         RunAlign();
     }
 
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(90) };
+
     private async void Load3D_Click(object sender, RoutedEventArgs e)
     {
         if (_lastResult == null) { ThreeDStatus.Text = "Run an alignment first."; return; }
@@ -139,13 +142,42 @@ public sealed partial class MainPage : Page
             resi++;
             if (res.Row1[i] == '-' || res.Row1[i] != res.Row2[i]) changed.Add(resi);
         }
-        string pdb = string.IsNullOrWhiteSpace(PdbBox.Text) ? "6VXX" : PdbBox.Text.Trim();
-        ThreeDStatus.Text = $"Loading {pdb}...";
+        string resiList = string.Join(",", changed);
+        bool predict = StructureSourceBox.SelectedIndex == 0;
         try
         {
             await Viewer3D.EnsureCoreWebView2Async();
-            Viewer3D.NavigateToString(Build3DHtml(pdb, string.Join(",", changed)));
-            ThreeDStatus.Text = $"{pdb}: {changed.Count} differing residues in red (from the current alignment). Drag to rotate.";
+            if (predict)
+            {
+                if (!_protein)
+                {
+                    ThreeDStatus.Text = "Predicting 3D needs a protein alignment. Use 'Translate DNA to protein' first, or switch to 'From PDB ID'.";
+                    return;
+                }
+                string seq2 = res.Row2.Replace("-", "");
+                if (seq2.Length < 10 || seq2.Length > 400)
+                {
+                    ThreeDStatus.Text = $"Predicting works for proteins of 10 to 400 residues (sequence 2 is {seq2.Length}). For longer proteins switch to 'From PDB ID'.";
+                    return;
+                }
+                ThreeDStatus.Text = $"Predicting the 3D structure of sequence 2 ({seq2.Length} aa)...";
+                string? pdb = await FoldAsync(seq2);
+                if (pdb == null)
+                {
+                    ThreeDStatus.Text = "The structure prediction service did not respond. Try again, or use 'From PDB ID'.";
+                    return;
+                }
+                string b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(pdb));
+                Viewer3D.NavigateToString(Build3DHtmlFromText(b64, resiList));
+                ThreeDStatus.Text = $"Predicted structure of sequence 2. {changed.Count} differing residues in red. Drag to rotate.";
+            }
+            else
+            {
+                string pdbId = string.IsNullOrWhiteSpace(PdbBox.Text) ? "6VXX" : PdbBox.Text.Trim();
+                ThreeDStatus.Text = $"Loading {pdbId}...";
+                Viewer3D.NavigateToString(Build3DHtmlFromPdbId(pdbId, resiList));
+                ThreeDStatus.Text = $"{pdbId}: {changed.Count} differing residues in red. Drag to rotate.";
+            }
         }
         catch
         {
@@ -153,7 +185,36 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private static string Build3DHtml(string pdb, string resiList)
+    // Fold a protein sequence into a 3D structure with the ESMFold web service.
+    private async Task<string?> FoldAsync(string seq)
+    {
+        try
+        {
+            var resp = await _http.PostAsync("https://api.esmatlas.com/foldSequence/v1/pdb/", new StringContent(seq));
+            if (!resp.IsSuccessStatusCode) return null;
+            string pdb = await resp.Content.ReadAsStringAsync();
+            return pdb.Contains("ATOM") ? pdb : null;
+        }
+        catch { return null; }
+    }
+
+    private static string Build3DHtmlFromText(string pdbBase64, string resiList)
+    {
+        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
+               "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
+               "<style>html,body{margin:0;height:100%;background:#fff}#v{width:100%;height:100vh;position:relative}</style>" +
+               "</head><body><div id='v'></div><script>" +
+               "var changed=[" + resiList + "];" +
+               "var pdb=atob('" + pdbBase64 + "');" +
+               "var viewer=$3Dmol.createViewer('v',{backgroundColor:'white'});" +
+               "viewer.addModel(pdb,'pdb');" +
+               "viewer.setStyle({},{cartoon:{color:'lightgray'}});" +
+               "viewer.addStyle({resi:changed},{cartoon:{color:'red'}});" +
+               "viewer.zoomTo();viewer.render();" +
+               "</script></body></html>";
+    }
+
+    private static string Build3DHtmlFromPdbId(string pdb, string resiList)
     {
         return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
                "<script src='https://3Dmol.org/build/3Dmol-min.js'></script>" +
