@@ -16,3 +16,12 @@ app/__pycache__/
 app/6vxx.pdb
 __MACOSX/
 .ipynb_checkpoints/
+
+# graded class deliverables and their build machinery (kept local, not published)
+SequenceAligner.ipynb
+SequenceAligner_Slides.pptx
+build_deck.js
+app/build_notebook.py
+app/sections.json
+app/spike_3d_cells.json
+blosum62_heatmap.png

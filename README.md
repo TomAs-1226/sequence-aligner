@@ -3,9 +3,9 @@
 Build and tune your own DNA and protein sequence aligner. This repo has two parts:
 
 1. A **native Windows app** (WinUI 3, C#) where you tune the scoring and watch the alignment change live.
-2. A **Python engine and notebook** with the same algorithms, plus the analysis and charts.
+2. A **Python engine** with the same algorithms, plus a one-click runner that writes all results and charts to a folder.
 
-Both run the same alignment methods: global (Needleman-Wunsch) and local (Smith-Waterman), with a linear or affine gap model, for DNA (match / mismatch) or protein (BLOSUM62 / PAM250).
+Both run the same methods: global (Needleman-Wunsch) and local (Smith-Waterman), with a linear or affine gap model, for DNA (match / mismatch) or protein (BLOSUM62 / PAM250).
 
 ## The Windows app
 
@@ -18,7 +18,7 @@ Features:
 - Colored alignment view (green match, red mismatch, gray gap), with score, percent identity, and gap counts.
 - Translate DNA to protein, a dot plot, and copy or save the alignment.
 
-Build and run (needs the .NET 9 SDK and the Windows App SDK, which restores automatically):
+Build and run (needs the .NET 9 SDK; the Windows App SDK restores automatically):
 
 ```
 cd SequenceAlignerApp
@@ -26,11 +26,11 @@ dotnet build
 dotnet run
 ```
 
-## The Python side
+## The Python engine
 
+- `app/engine.py` is the alignment engine (no third-party dependencies).
 - `run.py` (or double-click `run.bat` on Windows) runs every analysis and writes all results and charts into an **Output** folder.
-- `SequenceAligner.ipynb` is the interactive notebook (open it in Google Colab or run `jupyter lab`).
-- `app/engine.py` is the alignment engine. `app/make_figures.py` and `app/make_3d.py` draw the charts.
+- `app/make_figures.py` and `app/make_3d.py` draw the charts.
 
 Setup:
 
@@ -45,7 +45,6 @@ python run.py
 |------|-----------|
 | `SequenceAlignerApp/` | The WinUI 3 native app (C#) |
 | `app/engine.py` | The Python alignment engine |
-| `SequenceAligner.ipynb` | The notebook (aligner, analysis, charts, 3D) |
 | `run.py`, `run.bat` | One-click runner that fills the Output folder |
 | `Alignment/` | The original algorithm files and the sequence data |
 | `figures/` | The charts as images |
