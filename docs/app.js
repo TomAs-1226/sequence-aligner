@@ -24,6 +24,13 @@ function startWorker() {
       align();
     } else if (msg.type === "result") {
       if (msg.id === reqId) showResult(msg.data);
+    } else if (msg.type === "sweep") {
+      setBtn("btnSweep", false, "Plot score vs gap penalty");
+      if (msg.data.error) { toast(msg.data.error); } else drawSweep(msg.data);
+    } else if (msg.type === "significance") {
+      setBtn("btnSig", false, "Test against shuffled sequences");
+      if (msg.data.error) { $("sigCap").className = "cap no"; $("sigCap").textContent = msg.data.error; }
+      else drawSig(msg.data);
     } else if (msg.type === "translate") {
       applyTranslate(msg.data);
     } else if (msg.type === "revcomp") {
@@ -231,6 +238,86 @@ $("presetBad").onclick = () => {
   state.match = 1; state.mismatch = 1; state.gap = 0;
   syncSliders(); align(true);
 };
+
+// ---------- explore: sweep + significance ----------
+function setBtn(id, busy, label) { const b = $(id); b.disabled = busy; b.textContent = busy ? "computing..." : label; }
+function toast(txt) {
+  const cv = $("sweep"), ctx = cv.getContext("2d");
+  ctx.fillStyle = "#0c1a17"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "#e0a13c"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(txt, cv.width / 2, cv.height / 2);
+}
+$("btnSweep").onclick = () => {
+  if (!ready) return;
+  setBtn("btnSweep", true);
+  worker.postMessage({ type: "sweep", id: ++reqId, params: { ...state, seq1: $("seq1").value, seq2: $("seq2").value } });
+};
+$("btnSig").onclick = () => {
+  if (!ready) return;
+  setBtn("btnSig", true); $("sigCap").className = "cap"; $("sigCap").textContent = "";
+  worker.postMessage({ type: "significance", id: ++reqId, params: { ...state, seq1: $("seq1").value, seq2: $("seq2").value } });
+};
+
+function drawSweep(d) {
+  const cv = $("sweep"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.fillStyle = "#0c1a17"; ctx.fillRect(0, 0, W, H);
+  const pts = d.points; if (!pts || !pts.length) return;
+  const L = 46, R = 46, T = 28, B = 40, x0 = L, x1 = W - R, y0 = H - B, y1 = T, gmax = d.gmax;
+  const scores = pts.map((p) => p.score), gaps = pts.map((p) => p.gaps);
+  const sMin = Math.min(...scores), sMax = Math.max(...scores), gMax = Math.max(...gaps, 1);
+  const sx = (g) => x0 + (g / gmax) * (x1 - x0);
+  const sy = (s) => y0 - ((s - sMin) / ((sMax - sMin) || 1)) * (y0 - y1);
+  const gy = (n) => y0 - (n / gMax) * (y0 - y1);
+  ctx.strokeStyle = "#24433c"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
+  ctx.fillStyle = "#eaf3ef"; ctx.font = "13px sans-serif"; ctx.textAlign = "left";
+  ctx.fillText("Score and gap count vs gap penalty", x0 - 6, 16);
+  ctx.fillStyle = "#9db3ac"; ctx.font = "11px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("gap penalty", (x0 + x1) / 2, H - 8);
+  for (let t = 0; t <= 4; t++) { const g = gmax * t / 4; ctx.fillText(g.toFixed(0), sx(g), y0 + 15); }
+  const line = (color, yfn) => { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+    pts.forEach((p, i) => { const X = sx(p.gap), Y = yfn(p); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke();
+    ctx.fillStyle = color; pts.forEach((p) => { ctx.beginPath(); ctx.arc(sx(p.gap), yfn(p), 2.4, 0, 7); ctx.fill(); }); };
+  line("#4cc27a", (p) => sy(p.score));
+  line("#e0614e", (p) => gy(p.gaps));
+  if (d.gap_now <= gmax) {
+    const X = sx(d.gap_now); ctx.strokeStyle = "#9db3ac"; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(X, y1); ctx.lineTo(X, y0); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "#9db3ac"; ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.fillText("now", X, y0 - 5);
+  }
+  ctx.fillStyle = "#4cc27a"; ctx.font = "11px sans-serif"; ctx.textAlign = "left"; ctx.fillText("score", x0 - 4, y1 - 6);
+  ctx.fillStyle = "#e0614e"; ctx.textAlign = "right"; ctx.fillText("gaps", x1 + 4, y1 - 6);
+}
+
+function drawSig(d) {
+  const cv = $("sig"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.fillStyle = "#0c1a17"; ctx.fillRect(0, 0, W, H);
+  const nulls = d.nulls; if (!nulls || !nulls.length) return;
+  const L = 40, R = 20, T = 28, B = 40, x0 = L, x1 = W - R, y0 = H - B, y1 = T;
+  let lo = Math.min(...nulls, d.real), hi = Math.max(...nulls, d.real);
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const BINS = 26, counts = new Array(BINS).fill(0);
+  const bn = (v) => Math.min(BINS - 1, Math.max(0, Math.floor((v - lo) / (hi - lo) * BINS)));
+  nulls.forEach((v) => counts[bn(v)]++);
+  const cMax = Math.max(...counts, 1), bx = (i) => x0 + (i / BINS) * (x1 - x0), bw = (x1 - x0) / BINS;
+  ctx.strokeStyle = "#24433c"; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
+  ctx.fillStyle = "#3a5d54";
+  counts.forEach((c, i) => { const h = (c / cMax) * (y0 - y1); ctx.fillRect(bx(i) + 1, y0 - h, bw - 1.5, h); });
+  const rx = x0 + ((d.real - lo) / (hi - lo)) * (x1 - x0);
+  ctx.strokeStyle = "#e0614e"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(rx, y1); ctx.lineTo(rx, y0); ctx.stroke();
+  const right = rx > (x0 + x1) / 2;
+  ctx.fillStyle = "#e0614e"; ctx.font = "11px sans-serif"; ctx.textAlign = right ? "right" : "left";
+  ctx.fillText("real " + d.real, rx + (right ? -4 : 4), y1 + 10);
+  ctx.fillStyle = "#eaf3ef"; ctx.font = "13px sans-serif"; ctx.textAlign = "left";
+  ctx.fillText(`Real score vs ${d.n} shuffled scores`, x0 - 6, 16);
+  ctx.fillStyle = "#9db3ac"; ctx.font = "11px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("alignment score", (x0 + x1) / 2, H - 8);
+  const strong = d.z >= 4;
+  $("sigCap").className = "cap" + (strong ? "" : " no");
+  $("sigCap").innerHTML =
+    `The real score ${d.real} is <b>${d.z} standard deviations</b> above the shuffled average (${d.n} shuffles). ` +
+    (strong ? "That is far beyond chance, so this match is real." : "That is not clearly better than chance for these settings.");
+}
 
 // ---------- init ----------
 seg("typeSeg", "seqtype", () => { state.gap = state.seqtype === "dna" ? 2 : 10; setType(state.seqtype); syncSliders(); });

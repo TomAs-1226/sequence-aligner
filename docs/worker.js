@@ -30,6 +30,12 @@ onmessage = async (ev) => {
     if (msg.type === "align") {
       const out = web.web_align_json(JSON.stringify(msg.params));
       postMessage({ type: "result", id: msg.id, data: JSON.parse(out) });
+    } else if (msg.type === "sweep") {
+      const out = web.sweep_json(JSON.stringify(msg.params));
+      postMessage({ type: "sweep", id: msg.id, data: JSON.parse(out) });
+    } else if (msg.type === "significance") {
+      const out = web.significance_json(JSON.stringify(msg.params));
+      postMessage({ type: "significance", id: msg.id, data: JSON.parse(out) });
     } else if (msg.type === "translate") {
       postMessage({ type: "translate", id: msg.id, data: web.do_translate(msg.seq) });
     } else if (msg.type === "revcomp") {

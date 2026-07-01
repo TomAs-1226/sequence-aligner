@@ -151,3 +151,22 @@ canvas { width: 100%; max-width: 460px; background: #0c1a17; border: 1px solid v
 
 .footnote { color: var(--muted); font-size: 12.5px; margin-top: 26px; text-align: center; }
 .badge-live { color: var(--green); }
+
+/* explore section */
+.explore { margin-top: 18px; }
+.explore-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .explore-grid { grid-template-columns: 1fr; } }
+.ex-card { background: #0f201d; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.ex-card h3 { margin: 0 0 6px; font-size: 16px; color: var(--ink); }
+.ex-card .cap { margin: 0 0 12px; }
+.ex-btn {
+  cursor: pointer; border: 1px solid #3fbf76; border-radius: 10px;
+  background: linear-gradient(180deg, #2f9a5b, #23794533); color: #eafff1;
+  font-weight: 600; font-size: 13.5px; padding: 9px 14px;
+}
+.ex-btn:hover { filter: brightness(1.1); }
+.ex-btn:disabled { opacity: 0.55; cursor: default; filter: none; }
+.ex-card canvas { width: 100%; max-width: 100%; height: auto; margin-top: 12px; }
+#sigCap { color: var(--ink); font-size: 14px; }
+#sigCap b { color: var(--green); }
+#sigCap.no b { color: var(--amber); }

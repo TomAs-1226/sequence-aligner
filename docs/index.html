@@ -132,6 +132,25 @@
     </section>
   </div>
 
+  <section class="panel explore">
+    <h2>Explore</h2>
+    <div class="explore-grid">
+      <div class="ex-card">
+        <h3>The score climbs as the alignment gets worse</h3>
+        <p class="cap">Same two sequences, swept across every gap penalty. Watch the score and the number of gaps move in opposite directions. The honest setting is where the gaps settle down, not where the score is highest.</p>
+        <button id="btnSweep" class="ex-btn">Plot score vs gap penalty</button>
+        <canvas id="sweep" width="580" height="300"></canvas>
+      </div>
+      <div class="ex-card">
+        <h3>Is this alignment better than chance?</h3>
+        <p class="cap">We shuffle sequence 2 many times and align each shuffle. If the real score sits far to the right of the shuffled pile, the match is real and not luck. Works best on hemoglobin or cytochrome c.</p>
+        <button id="btnSig" class="ex-btn">Test against shuffled sequences</button>
+        <canvas id="sig" width="580" height="300"></canvas>
+        <p class="cap" id="sigCap"></p>
+      </div>
+    </div>
+  </section>
+
   <p class="footnote">
     This page runs our real <code>engine.py</code> with <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a> (Python compiled to WebAssembly). No server, nothing to install.
     <a href="writeup.html">Read the write-up</a> for the good-versus-bad story and how we judge a good alignment.
