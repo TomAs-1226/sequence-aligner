@@ -39,6 +39,7 @@
                     <ComboBoxItem Content="SARS spike (DNA)" />
                     <ComboBoxItem Content="SARS spike (protein)" />
                     <ComboBoxItem Content="SARS whole genomes (30 kb, banded)" />
+                    <ComboBoxItem Content="Cytochrome c: human vs yeast" />
                 </ComboBox>
 
                 <ComboBox x:Name="TypeBox" Header="Sequence type" HorizontalAlignment="Stretch"

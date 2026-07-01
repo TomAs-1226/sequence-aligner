@@ -16,10 +16,23 @@ import torch
 
 
 def best_device():
-    if hasattr(torch, "xpu") and torch.xpu.is_available():
-        return "xpu"            # Intel GPU
-    if torch.cuda.is_available():
-        return "cuda"           # NVIDIA GPU
+    """Pick the best available accelerator, or the CPU if none is compatible.
+    Works with Intel (xpu), NVIDIA and AMD/ROCm (cuda), and Apple Silicon (mps)."""
+    try:
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            return "xpu"        # Intel GPU
+    except Exception:
+        pass
+    try:
+        if torch.cuda.is_available():
+            return "cuda"       # NVIDIA, or AMD via a ROCm build of torch
+    except Exception:
+        pass
+    try:
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"        # Apple Silicon GPU (Mac)
+    except Exception:
+        pass
     return "cpu"
 
 
@@ -48,9 +61,21 @@ def encode(seq, idx):
 
 def batched_global_scores(query, targets, matrix, gap, alphabet, device=None):
     """Global-alignment scores of `query` against each target (all targets must
-    be the same length). Returns a list of scores. `matrix` is a {(a,b):int} dict."""
+    be the same length). Returns a list of scores. `matrix` is a {(a,b):int} dict.
+
+    Runs on the best available GPU and automatically falls back to the CPU if
+    there is no compatible GPU or if the GPU run fails for any reason."""
     if device is None:
         device = best_device()
+    try:
+        return _run_batch(query, targets, matrix, gap, alphabet, device)
+    except Exception:
+        if device != "cpu":
+            return _run_batch(query, targets, matrix, gap, alphabet, "cpu")
+        raise
+
+
+def _run_batch(query, targets, matrix, gap, alphabet, device):
     M, idx = build_matrix_tensor(matrix, alphabet)
     SM = M.to(device)
     n = len(query)

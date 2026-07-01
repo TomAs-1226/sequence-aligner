@@ -198,8 +198,9 @@ def align_global_affine(seq1: str, seq2: str, scorer, gap_open: float, gap_exten
         for j in range(1, m + 1):
             sub = scorer(seq1[i - 1], seq2[j - 1])
             M[i][j] = max(M[i - 1][j - 1], Ix[i - 1][j - 1], Iy[i - 1][j - 1]) + sub
-            Ix[i][j] = max(M[i - 1][j] - gap_open, Ix[i - 1][j] - gap_extend)
-            Iy[i][j] = max(M[i][j - 1] - gap_open, Iy[i][j - 1] - gap_extend)
+            # a gap can open from a match OR right after a gap in the other sequence
+            Ix[i][j] = max(M[i - 1][j] - gap_open, Ix[i - 1][j] - gap_extend, Iy[i - 1][j] - gap_open)
+            Iy[i][j] = max(M[i][j - 1] - gap_open, Iy[i][j - 1] - gap_extend, Ix[i][j - 1] - gap_open)
 
     row1, row2 = _traceback_affine(seq1, seq2, scorer, gap_open, gap_extend, M, Ix, Iy, n, m)
     return row1, row2, max(M[n][m], Ix[n][m], Iy[n][m])
@@ -224,15 +225,19 @@ def _traceback_affine(seq1, seq2, scorer, gap_open, gap_extend, M, Ix, Iy, i, j)
                 state = "Iy"
         elif state == "Ix":
             row1.append(seq1[i - 1]); row2.append("-")
-            if i >= 1 and abs(Ix[i][j] - (M[i - 1][j] - gap_open)) < eps:
+            if abs(Ix[i][j] - (M[i - 1][j] - gap_open)) < eps:
                 state = "M"
+            elif abs(Ix[i][j] - (Iy[i - 1][j] - gap_open)) < eps:
+                state = "Iy"
             else:
                 state = "Ix"
             i -= 1
         else:  # Iy
             row1.append("-"); row2.append(seq2[j - 1])
-            if j >= 1 and abs(Iy[i][j] - (M[i][j - 1] - gap_open)) < eps:
+            if abs(Iy[i][j] - (M[i][j - 1] - gap_open)) < eps:
                 state = "M"
+            elif abs(Iy[i][j] - (Ix[i][j - 1] - gap_open)) < eps:
+                state = "Ix"
             else:
                 state = "Iy"
             j -= 1

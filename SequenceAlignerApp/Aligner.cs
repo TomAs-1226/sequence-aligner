@@ -105,8 +105,9 @@ public static class Aligner
             {
                 double sub = sc(s1[i - 1], s2[j - 1]);
                 M[i, j] = Math.Max(M[i - 1, j - 1], Math.Max(Ix[i - 1, j - 1], Iy[i - 1, j - 1])) + sub;
-                Ix[i, j] = Math.Max(M[i - 1, j] - open, Ix[i - 1, j] - extend);
-                Iy[i, j] = Math.Max(M[i, j - 1] - open, Iy[i, j - 1] - extend);
+                // a gap can open from a match OR right after a gap in the other sequence
+                Ix[i, j] = Math.Max(M[i - 1, j] - open, Math.Max(Ix[i - 1, j] - extend, Iy[i - 1, j] - open));
+                Iy[i, j] = Math.Max(M[i, j - 1] - open, Math.Max(Iy[i, j - 1] - extend, Ix[i, j - 1] - open));
             }
         // traceback
         var a = new StringBuilder(); var b = new StringBuilder();
@@ -129,13 +130,17 @@ public static class Aligner
             else if (state == "Ix")
             {
                 a.Append(s1[ii - 1]); b.Append('-');
-                state = (ii >= 1 && Math.Abs(Ix[ii, jj] - (M[ii - 1, jj] - open)) < Eps) ? "M" : "Ix";
+                if (Math.Abs(Ix[ii, jj] - (M[ii - 1, jj] - open)) < Eps) state = "M";
+                else if (Math.Abs(Ix[ii, jj] - (Iy[ii - 1, jj] - open)) < Eps) state = "Iy";
+                else state = "Ix";
                 ii--;
             }
             else
             {
                 a.Append('-'); b.Append(s2[jj - 1]);
-                state = (jj >= 1 && Math.Abs(Iy[ii, jj] - (M[ii, jj - 1] - open)) < Eps) ? "M" : "Iy";
+                if (Math.Abs(Iy[ii, jj] - (M[ii, jj - 1] - open)) < Eps) state = "M";
+                else if (Math.Abs(Iy[ii, jj] - (Ix[ii, jj - 1] - open)) < Eps) state = "Ix";
+                else state = "Iy";
                 jj--;
             }
         }

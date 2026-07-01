@@ -100,6 +100,7 @@ public sealed partial class MainPage : Page
             case 4: Seq1Box.Text = SampleData.SarsCovSpikeDna; Seq2Box.Text = SampleData.SarsCov2SpikeDna; TypeBox.SelectedIndex = 0; break;
             case 5: Seq1Box.Text = Aligner.Translate(SampleData.SarsCovSpikeDna); Seq2Box.Text = Aligner.Translate(SampleData.SarsCov2SpikeDna); TypeBox.SelectedIndex = 1; break;
             case 6: Seq1Box.Text = SampleData.SarsCovGenome; Seq2Box.Text = SampleData.SarsCov2Genome; TypeBox.SelectedIndex = 0; break;
+            case 7: Seq1Box.Text = SampleData.CytcHuman; Seq2Box.Text = SampleData.CytcYeast; TypeBox.SelectedIndex = 1; break;
             default: return;
         }
         UpdateVisibility();
