@@ -7,16 +7,23 @@ Build and tune your own DNA and protein sequence aligner. This repo has two part
 
 Both run the same methods: global (Needleman-Wunsch) and local (Smith-Waterman), with a linear or affine gap model, for DNA (match / mismatch) or protein (BLOSUM62 / PAM250).
 
+## Download and run (no build needed)
+
+Get the latest Windows build from the [Releases page](https://github.com/TomAs-1226/sequence-aligner/releases): download `SequenceAlignerApp-win-x64.zip`, unzip it, and run `SequenceAlignerApp.exe`. It is self-contained, so you do not need to install .NET or anything else. (The 3D viewer and the AI structure feature need an internet connection.)
+
 ## The Windows app
 
 Folder: `SequenceAlignerApp/`
 
 Features:
-- Two sequence boxes, or load a FASTA file, or pick a built-in sample (toy DNA, hemoglobin, SARS spike).
+- Two sequence boxes, load a FASTA file, or pick a built-in sample (toy DNA, hemoglobin, cytochrome c, SARS spike, or whole SARS genomes).
 - Sliders for match reward, mismatch penalty, and gap penalty. The alignment redraws as you move them.
-- Global or local, DNA or protein, BLOSUM62 or PAM250, linear or affine gaps.
-- Colored alignment view (green match, red mismatch, gray gap), with score, percent identity, and gap counts.
-- Translate DNA to protein, a dot plot, and copy or save the alignment.
+- Global, local, or semi-global (free end gaps); DNA or protein; BLOSUM62 or PAM250; linear or affine gaps.
+- Handles two whole 30,000-letter genomes with a banded aligner.
+- Colored alignment view with a match line, plus score, percent identity, gap counts, and sequence stats.
+- Translate DNA to protein, reverse complement, a dot plot, and copy or save the alignment.
+- A 3D viewer that predicts your protein's structure (ESMFold) or loads a PDB, and colors it by where the two sequences differ.
+- An AI secondary-structure predictor (helix / sheet / coil) that runs on the GPU or NPU with Windows ML.
 
 Build and run (needs the .NET 9 SDK; the Windows App SDK restores automatically):
 
