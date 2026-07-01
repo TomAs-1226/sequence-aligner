@@ -15,7 +15,7 @@ let ready = false;
 
 // ---------- worker ----------
 function startWorker() {
-  worker = new Worker("worker.js");
+  worker = new Worker("worker.js?v=2");
   worker.onmessage = (ev) => {
     const msg = ev.data;
     if (msg.type === "ready") {
@@ -341,7 +341,7 @@ let engineSrc = null, lastOrder = [], replayTimer = null;
 function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 async function ensureCode() {
   if (engineSrc) return;
-  engineSrc = await fetch("engine.py").then((r) => r.text());
+  engineSrc = await fetch("engine.py?v=2").then((r) => r.text());
   $("codeView").innerHTML = engineSrc.split("\n").map((ln, i) =>
     `<div class="cl" data-ln="${i + 1}"><span class="ln">${i + 1}</span><code>${esc(ln) || " "}</code></div>`).join("");
 }

@@ -9,8 +9,8 @@ let web = null;
 async function init() {
   pyodide = await loadPyodide();
   const [engineSrc, webSrc] = await Promise.all([
-    fetch("engine.py").then((r) => r.text()),
-    fetch("web.py").then((r) => r.text()),
+    fetch("engine.py?v=2").then((r) => r.text()),
+    fetch("web.py?v=2").then((r) => r.text()),
   ]);
   pyodide.FS.writeFile("engine.py", engineSrc);
   pyodide.FS.writeFile("web.py", webSrc);
