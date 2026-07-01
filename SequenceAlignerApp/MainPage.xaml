@@ -176,6 +176,26 @@
                         <WebView2 x:Name="Viewer3D" Height="480" />
                     </StackPanel>
                 </Expander>
+
+                <Expander Header="AI secondary structure (runs on the GPU / NPU)" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Predict secondary structure" Click="PredictSS_Click" />
+                            <TextBlock x:Name="SsStatus" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Text="H helix" Foreground="#C43D2E" />
+                            <TextBlock Text="E sheet" Foreground="#D98A26" />
+                            <TextBlock Text="C coil" Foreground="#8A8A8A" />
+                        </StackPanel>
+                        <TextBlock Text="A small neural network predicts the shape each amino acid of sequence 2 folds into, running on the graphics card or NPU with ONNX Runtime. It was trained on real predicted structures."
+                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" MaxHeight="220">
+                            <RichTextBlock x:Name="SsView" FontFamily="Consolas" FontSize="14" />
+                        </ScrollViewer>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
     </Grid>

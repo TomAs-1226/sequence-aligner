@@ -22,6 +22,8 @@ public sealed partial class MainPage : Page
     private static readonly SolidColorBrush GreenB = new(Windows.UI.Color.FromArgb(255, 0x2E, 0x7D, 0x46));
     private static readonly SolidColorBrush RedB = new(Windows.UI.Color.FromArgb(255, 0xC4, 0x3D, 0x2E));
     private static readonly SolidColorBrush GrayB = new(Windows.UI.Color.FromArgb(255, 0x8A, 0x8A, 0x8A));
+    private static readonly SolidColorBrush SheetB = new(Windows.UI.Color.FromArgb(255, 0xD9, 0x8A, 0x26));
+    private SsModel? _ss;
     private const int MaxViewColumns = 1500;
 
     private bool _ready;
@@ -244,6 +246,50 @@ public sealed partial class MainPage : Page
         picker.SuggestedFileName = "structure";
         var file = await picker.PickSaveFileAsync();
         if (file != null) await FileIO.WriteTextAsync(file, _last3dPdb);
+    }
+
+    private async void PredictSS_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastResult == null) { SsStatus.Text = "Run a protein alignment first."; return; }
+        if (!_protein) { SsStatus.Text = "Secondary structure is for protein alignments. Use 'Translate DNA to protein' first."; return; }
+        _ss ??= new SsModel();
+        if (!_ss.Ready) { SsStatus.Text = "The AI model could not load (ss_model.onnx missing)."; return; }
+        string seq2 = _lastResult.Row2.Replace("-", "");
+        if (seq2.Length == 0) return;
+        SsStatus.Text = $"Running on the {_ss.Provider}...";
+        string ss = await Task.Run(() => _ss.Predict(seq2));
+        if (ss.Length != seq2.Length) { SsStatus.Text = "Prediction failed."; return; }
+
+        // draw the sequence with a colored secondary-structure track under it
+        SsView.Blocks.Clear();
+        var track = new List<(char ch, SolidColorBrush br)>();
+        int k = 0;
+        foreach (char rc in _lastResult.Row2)
+        {
+            if (rc == '-') { track.Add((' ', GrayB)); continue; }
+            char s = k < ss.Length ? ss[k] : 'C'; k++;
+            track.Add((s, s == 'H' ? RedB : (s == 'E' ? SheetB : GrayB)));
+        }
+        string row2 = _lastResult.Row2;
+        const int width = 60;
+        for (int start = 0; start < row2.Length; start += width)
+        {
+            int end = Math.Min(start + width, row2.Length);
+            var pSeq = new Paragraph();
+            var pSs = new Paragraph();
+            for (int i = start; i < end; i++)
+            {
+                pSeq.Inlines.Add(new Run { Text = row2[i].ToString(), Foreground = GrayB });
+                pSs.Inlines.Add(new Run { Text = track[i].ch.ToString(), Foreground = track[i].br });
+            }
+            SsView.Blocks.Add(pSeq);
+            SsView.Blocks.Add(pSs);
+            SsView.Blocks.Add(new Paragraph());
+        }
+
+        int h = 0, sh = 0, co = 0;
+        foreach (char c in ss) { if (c == 'H') h++; else if (c == 'E') sh++; else co++; }
+        SsStatus.Text = $"{_ss.Provider}: {h} helix, {sh} sheet, {co} coil";
     }
 
     private async void ShowMatrix_Click(object sender, RoutedEventArgs e)

@@ -14,6 +14,8 @@ SequenceAligner_preview.html
 # caches and junk
 app/__pycache__/
 app/6vxx.pdb
+app/ss_cache/
+app/ss_model.onnx
 __MACOSX/
 .ipynb_checkpoints/
 
